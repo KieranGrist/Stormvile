@@ -1,11 +1,12 @@
 ﻿  Stormvile.cpp
-n:\github\university\stormvile trench run\direct3d11tutorials\tutorial07\stopwatch.h(123): warning C4800: 'BOOL': forcing value to bool 'true' or 'false' (performance warning)
-n:\github\university\stormvile trench run\direct3d11tutorials\tutorial07\stormvile.cpp(133): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
-n:\github\university\stormvile trench run\direct3d11tutorials\tutorial07\stormvile.cpp(2048): warning C4459: declaration of 'Eye' hides global declaration
-  n:\github\university\stormvile trench run\direct3d11tutorials\tutorial07\stormvile.cpp(28): note: see declaration of 'Eye'
-n:\github\university\stormvile trench run\direct3d11tutorials\tutorial07\stormvile.cpp(2049): warning C4459: declaration of 'At' hides global declaration
-  n:\github\university\stormvile trench run\direct3d11tutorials\tutorial07\stormvile.cpp(28): note: see declaration of 'At'
-n:\github\university\stormvile trench run\direct3d11tutorials\tutorial07\stormvile.cpp(2050): warning C4459: declaration of 'Up' hides global declaration
-  n:\github\university\stormvile trench run\direct3d11tutorials\tutorial07\stormvile.cpp(28): note: see declaration of 'Up'
-  Tutorial07_2015.vcxproj -> N:\GitHub\University\Stormvile Trench Run\Direct3D11Tutorials\Debug\Stormvile.exe
-  Tutorial07_2015.vcxproj -> N:\GitHub\University\Stormvile Trench Run\Direct3D11Tutorials\Debug\Stormvile.pdb (Full PDB)
+n:\github\stormvile\tutorial07\stopwatch.h(123): warning C4800: 'BOOL': forcing value to bool 'true' or 'false' (performance warning)
+n:\github\stormvile\tutorial07\stormvile.cpp(132): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+n:\github\stormvile\tutorial07\stormvile.cpp(2044): warning C4459: declaration of 'Eye' hides global declaration
+  n:\github\stormvile\tutorial07\stormvile.cpp(28): note: see declaration of 'Eye'
+n:\github\stormvile\tutorial07\stormvile.cpp(2045): warning C4459: declaration of 'At' hides global declaration
+  n:\github\stormvile\tutorial07\stormvile.cpp(28): note: see declaration of 'At'
+n:\github\stormvile\tutorial07\stormvile.cpp(2046): warning C4459: declaration of 'Up' hides global declaration
+  n:\github\stormvile\tutorial07\stormvile.cpp(28): note: see declaration of 'Up'
+Boundaries.obj : warning LNK4075: ignoring '/EDITANDCONTINUE' due to '/SAFESEH' specification
+  Tutorial07_2015.vcxproj -> N:\GitHub\Stormvile\Debug\Stormvile.exe
+  Tutorial07_2015.vcxproj -> N:\GitHub\Stormvile\Debug\Stormvile.pdb (Full PDB)

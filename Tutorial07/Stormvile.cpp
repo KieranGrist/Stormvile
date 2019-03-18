@@ -103,8 +103,7 @@ ID3D11ShaderResourceView* Wall2Texture;
 ID3D11ShaderResourceView* TurretTexture;
 ID3D11ShaderResourceView* TargetTexture;
 ID3D11ShaderResourceView* Wall3Texture;
-std::unique_ptr<DirectX::SpriteBatch> spriteBatch;
-std::unique_ptr<DirectX::SpriteFont> spriteFont;
+
 
 ID3D11SamplerState*                 g_pSamplerLinear = nullptr;
 XMMATRIX                            g_World;
@@ -630,8 +629,6 @@ HRESULT InitDevice()
 	CBChangeOnResize cbChangesOnResize;
 	cbChangesOnResize.mProjection = XMMatrixTranspose(g_Projection);
 	DevCon->UpdateSubresource(g_pCBChangeOnResize, 0, nullptr, &cbChangesOnResize, 0, 0);
-	spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
-	spriteFont = std::make_unique<DirectX::SpriteFont>(g_pd3dDevice, L"Text/comic_sans_ms_16.spritefont");
 
 	return S_OK;
 }
@@ -864,7 +861,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 void GameObject::Draw()
 {
-	spriteFont->DrawString(spriteBatch.get(), L"Hello WORLD", XMFLOAT2(0, 0), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
 
 	XMMATRIX DrawMatrice;
 	XMMATRIX PositionMatrix;
@@ -2076,18 +2072,26 @@ void Level5()
 
 }
 double Timer;
+double DeltaTime = 0;
+std::unique_ptr<DirectX::SpriteBatch> spriteBatch;
+std::unique_ptr<DirectX::SpriteFont> spriteFont;
+ID3D11BlendState * Blend;
+
 void Render()
 {
-	DevCon->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
-	DevCon->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	
+
+	Stopwatch FrameTime;
+	FrameTime.Start();
+
+	
 	UINT stride = sizeof(SimpleVertex);
 	UINT offset = 0;
 	//time is up here... 
 
 	level1 = false;
 	Debug = true;
-	spriteBatch->Begin();
-
+	DevCon->OMSetBlendState(Blend, NULL, 0xffffffff);
 
 	D3D11_VIEWPORT vp;
 	vp.Width = Width;
@@ -2096,21 +2100,32 @@ void Render()
 	vp.MaxDepth = 1.0f;
 	vp.TopLeftX = 0;
 	vp.TopLeftY = 0;
+
 	DevCon->RSSetViewports(1, &vp);
 
 	DevCon->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
-
 
 	DevCon->IASetInputLayout(g_pVertexLayout);
 
 	DevCon->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
 	// Set index buffer
-	DevCon->IxASetIndexBuffer(g_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+	DevCon->IASetIndexBuffer(g_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
 
 	// Set primitive topology
 	DevCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+	// Initialize the world matrices
+	g_World = XMMatrixIdentity();
 
+
+	// Initialize the projection matrix
+	g_Projection = XMMatrixPerspectiveFovLH(XM_PIDIV4, Width / Height, 0.01f, 1000.0f);
+
+	CBChangeOnResize cbChangesOnResize;
+	cbChangesOnResize.mProjection = XMMatrixTranspose(g_Projection);
+	DevCon->UpdateSubresource(g_pCBChangeOnResize, 0, nullptr, &cbChangesOnResize, 0, 0);
+	DevCon->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
+	DevCon->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 
 	if (level1 == true)
@@ -2143,20 +2158,21 @@ wstring TText = L"Frame Rate = ";
 TText += TFPS;
 const wchar_t *Text = TText.c_str();
 
-spriteFont->DrawString(spriteBatch.get(), Text, XMFLOAT2(2, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+wstring DET = std::to_wstring(DeltaTime);
+wstring DText = L"Frame Time = ";
 
+DText += DET;
+const wchar_t *Text2 = DText.c_str();
+
+
+spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
+spriteFont = std::make_unique<DirectX::SpriteFont>(g_pd3dDevice, L"Text/comic_sans_ms_16.spritefont");
+spriteBatch->Begin();
+spriteFont->DrawString(spriteBatch.get(), Text, XMFLOAT2(0, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
 spriteBatch->End();
+
+
 g_pSwapChain->Present(0, 0);
-
-
-
-
-
-/*
-timer
-Every frame have an integer that goes up by one
-Every second set a second integer that is the value of the frame counter
-Draw that frame
-*/
-
+DeltaTime = FrameTime.ElapsedMilliseconds();
 }
