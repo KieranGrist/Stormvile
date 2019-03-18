@@ -2054,6 +2054,7 @@ void Level1()
 	objLevel1Corridor[4].Update();
 	objLevel1Corridor[5].Update();
 	StartBlock.Update();
+
 }
 void Level2()
 {
@@ -2091,7 +2092,7 @@ void Render()
 
 	level1 = false;
 	Debug = true;
-	DevCon->OMSetBlendState(Blend, NULL, 0xffffffff);
+
 
 	D3D11_VIEWPORT vp;
 	vp.Width = Width;
@@ -2165,12 +2166,12 @@ DText += DET;
 const wchar_t *Text2 = DText.c_str();
 
 
-spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
-spriteFont = std::make_unique<DirectX::SpriteFont>(g_pd3dDevice, L"Text/comic_sans_ms_16.spritefont");
-spriteBatch->Begin();
-spriteFont->DrawString(spriteBatch.get(), Text, XMFLOAT2(0, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-spriteBatch->End();
+//spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
+//spriteFont = std::make_unique<DirectX::SpriteFont>(g_pd3dDevice, L"Text/comic_sans_ms_16.spritefont");
+//spriteBatch->Begin();
+//spriteFont->DrawString(spriteBatch.get(), Text, XMFLOAT2(0, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+//spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+//spriteBatch->End();
 
 
 g_pSwapChain->Present(0, 0);
