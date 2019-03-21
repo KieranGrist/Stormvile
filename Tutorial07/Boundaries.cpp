@@ -262,13 +262,21 @@ void Boundaries::Setup(GameObjectInit Init) {
 
 void Boundaries::Update()
 {
+
 	if (BackWall == true)
 	{
 		objBackWall.Update();
+		objBackWall.MinExtent = VectorSub(objBackWall.Position, Vector3(0.5, 5, 5));
+		objBackWall.MaxExtent = VectorAdd(objBackWall.Position, Vector3(0.5, 5, 5));
+
+		
 	}
 	if (FrontWall == true)
 	{
 		objFrontWall.Update();
+		objFrontWall.MinExtent = VectorSub(objBackWall.Position, Vector3(0.5, 5, 5));
+		objFrontWall.MaxExtent = VectorAdd(objBackWall.Position, Vector3(0.5, 5, 5));
+
 	}
 	if (LeftWall == true)
 	{

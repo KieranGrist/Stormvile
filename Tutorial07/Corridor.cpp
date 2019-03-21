@@ -435,6 +435,7 @@ void Corridor::Update()
 	for (int i = 0; i < FloorLength; i++)
 	{
 		objFloors[i].Update();
+
 	}
 }
 

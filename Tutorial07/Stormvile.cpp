@@ -16,6 +16,13 @@
 #include "Player.h"
 #include "Corridor.h"
 #include "StopWatch.h"
+/*
+https://github.com/Pindrought/DirectX-11-Engine-VS2017/blob/Tutorial_18/DirectX%2011%20Engine%20VS2017/DirectX%2011%20Engine%20VS2017/Graphics/Graphics.cpp
+
+
+
+*/
+
 float Height, Width;
 GameObject Camera;
 GameObject FocusObject;
@@ -27,7 +34,10 @@ bool level1 = true, Debug = false, setup = true;
 int CurrentFrameRate, FPS;
 XMVECTOR Eye, At, Up;
 Stopwatch Frametimer;
-
+GameObject OBJ;
+GameObject OBJ2;
+std::unique_ptr<DirectX::SpriteBatch> spriteBatch;
+std::unique_ptr<DirectX::SpriteFont> spriteFont;
 //--------------------------------------------------------------------------------------
 // Structures
 //--------------------------------------------------------------------------------------
@@ -35,6 +45,7 @@ struct SimpleVertex
 {
 	Vector3 Pos;
 	Vector2 Tex;
+	Vector3 Normal;
 };
 
 struct CBNeverChanges
@@ -51,8 +62,11 @@ struct CBChangesEveryFrame
 {
 	XMMATRIX mWorld;
 	XMFLOAT4 vMeshColor;
+XMFLOAT4  vLightDir[2];
+XMFLOAT4 vLightColor[2];
 };
-
+D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
+D3D11_TEXTURE2D_DESC descDepth = {};
 CBNeverChanges cbNeverChanges;
 //--------------------------------------------------------------------------------------
 // Global Variables
@@ -61,15 +75,13 @@ HINSTANCE                           g_hInst = nullptr;
 HWND                                g_hWnd = nullptr;
 D3D_DRIVER_TYPE                     g_driverType = D3D_DRIVER_TYPE_NULL;
 D3D_FEATURE_LEVEL                   g_featureLevel = D3D_FEATURE_LEVEL_11_0;
-ID3D11Device*                       g_pd3dDevice = nullptr;
-ID3D11Device1*                      g_pd3dDevice1 = nullptr;
-ID3D11DeviceContext*                DevCon = nullptr;
-ID3D11DeviceContext1*               g_pImmediateContext1 = nullptr;
-IDXGISwapChain*                     g_pSwapChain = nullptr;
-IDXGISwapChain1*                    g_pSwapChain1 = nullptr;
-ID3D11RenderTargetView*             g_pRenderTargetView = nullptr;
-ID3D11Texture2D*                    g_pDepthStencil = nullptr;
-ID3D11DepthStencilView*             g_pDepthStencilView = nullptr;
+
+ID3D11Device1*                      Device1 = nullptr;
+
+ID3D11DeviceContext1*               DevCon1 = nullptr;
+
+IDXGISwapChain1*                    swapChain1 = nullptr;
+
 ID3D11VertexShader*                 g_pVertexShader = nullptr;
 ID3D11PixelShader*                  g_pPixelShader = nullptr;
 ID3D11InputLayout*                  g_pVertexLayout = nullptr;
@@ -105,11 +117,23 @@ ID3D11ShaderResourceView* TargetTexture;
 ID3D11ShaderResourceView* Wall3Texture;
 
 
+
+ID3D11Device*                       Device = nullptr;
+ID3D11DeviceContext*                DevCon = nullptr;
+IDXGISwapChain*                     swapChain = nullptr;
+ID3D11RenderTargetView*             RenderTargetView = nullptr;
+
+
+ID3D11Texture2D*                    DepthStencilBuffer = nullptr;
+ID3D11DepthStencilView*             depthStencelView = nullptr;
+ID3D11DepthStencilState * depthStencilState;
+ID3D11RasterizerState * rasterizerState;
+
 ID3D11SamplerState*                 g_pSamplerLinear = nullptr;
 XMMATRIX                            g_World;
 XMMATRIX                            g_View;
 XMMATRIX                            g_Projection;
-XMFLOAT4                            g_vMeshColor(0.7f, 0.7f, 0.7f, 1.0f);
+XMFLOAT4                           g_vMeshColor(0.7f, 0.7f, 0.7f,1);
 
 
 
@@ -282,13 +306,13 @@ HRESULT InitDevice()
 	{
 		g_driverType = driverTypes[driverTypeIndex];
 		hr = D3D11CreateDevice(nullptr, g_driverType, nullptr, createDeviceFlags, featureLevels, numFeatureLevels,
-			D3D11_SDK_VERSION, &g_pd3dDevice, &g_featureLevel, &DevCon);
+			D3D11_SDK_VERSION, &Device, &g_featureLevel, &DevCon);
 
 		if (hr == E_INVALIDARG)
 		{
 			// DirectX 11.0 platforms will not recognize D3D_FEATURE_LEVEL_11_1 so we need to retry without it
 			hr = D3D11CreateDevice(nullptr, g_driverType, nullptr, createDeviceFlags, &featureLevels[1], numFeatureLevels - 1,
-				D3D11_SDK_VERSION, &g_pd3dDevice, &g_featureLevel, &DevCon);
+				D3D11_SDK_VERSION, &Device, &g_featureLevel, &DevCon);
 		}
 
 		if (SUCCEEDED(hr))
@@ -301,7 +325,7 @@ HRESULT InitDevice()
 	IDXGIFactory1* dxgiFactory = nullptr;
 	{
 		IDXGIDevice* dxgiDevice = nullptr;
-		hr = g_pd3dDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgiDevice));
+		hr = Device->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgiDevice));
 		if (SUCCEEDED(hr))
 		{
 			IDXGIAdapter* adapter = nullptr;
@@ -323,10 +347,10 @@ HRESULT InitDevice()
 	if (dxgiFactory2)
 	{
 		// DirectX 11.1 or later
-		hr = g_pd3dDevice->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void**>(&g_pd3dDevice1));
+		hr = Device->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void**>(&Device1));
 		if (SUCCEEDED(hr))
 		{
-			(void)DevCon->QueryInterface(__uuidof(ID3D11DeviceContext1), reinterpret_cast<void**>(&g_pImmediateContext1));
+			(void)DevCon->QueryInterface(__uuidof(ID3D11DeviceContext1), reinterpret_cast<void**>(&DevCon1));
 		}
 
 		DXGI_SWAP_CHAIN_DESC1 sd = {};
@@ -338,10 +362,10 @@ HRESULT InitDevice()
 		sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		sd.BufferCount = 1;
 
-		hr = dxgiFactory2->CreateSwapChainForHwnd(g_pd3dDevice, g_hWnd, &sd, nullptr, nullptr, &g_pSwapChain1);
+		hr = dxgiFactory2->CreateSwapChainForHwnd(Device, g_hWnd, &sd, nullptr, nullptr, &swapChain1);
 		if (SUCCEEDED(hr))
 		{
-			hr = g_pSwapChain1->QueryInterface(__uuidof(IDXGISwapChain), reinterpret_cast<void**>(&g_pSwapChain));
+			hr = swapChain1->QueryInterface(__uuidof(IDXGISwapChain), reinterpret_cast<void**>(&swapChain));
 		}
 
 		dxgiFactory2->Release();
@@ -362,7 +386,7 @@ HRESULT InitDevice()
 		sd.SampleDesc.Quality = 0;
 		sd.Windowed = TRUE;
 
-		hr = dxgiFactory->CreateSwapChain(g_pd3dDevice, &sd, &g_pSwapChain);
+		hr = dxgiFactory->CreateSwapChain(Device, &sd, &swapChain);
 	}
 
 	// Note this tutorial doesn't handle full-screen swapchains so we block the ALT+ENTER shortcut
@@ -375,17 +399,17 @@ HRESULT InitDevice()
 
 	// Create a render target view
 	ID3D11Texture2D* pBackBuffer = nullptr;
-	hr = g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&pBackBuffer));
+	hr = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&pBackBuffer));
 	if (FAILED(hr))
 		return hr;
 
-	hr = g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_pRenderTargetView);
+	hr = Device->CreateRenderTargetView(pBackBuffer, nullptr, &RenderTargetView);
 	pBackBuffer->Release();
 	if (FAILED(hr))
 		return hr;
 
 	// Create depth stencil texture
-	D3D11_TEXTURE2D_DESC descDepth = {};
+
 	descDepth.Width = width;
 	descDepth.Height = height;
 	descDepth.MipLevels = 1;
@@ -397,20 +421,37 @@ HRESULT InitDevice()
 	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	descDepth.CPUAccessFlags = 0;
 	descDepth.MiscFlags = 0;
-	hr = g_pd3dDevice->CreateTexture2D(&descDepth, nullptr, &g_pDepthStencil);
+	hr = Device->CreateTexture2D(&descDepth, nullptr, &DepthStencilBuffer);
 	if (FAILED(hr))
 		return hr;
 
 	// Create the depth stencil view
-	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
+
 	descDSV.Format = descDepth.Format;
 	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 	descDSV.Texture2D.MipSlice = 0;
-	hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencil, &descDSV, &g_pDepthStencilView);
+	hr = Device->CreateDepthStencilView(DepthStencilBuffer, &descDSV, &depthStencelView);
 	if (FAILED(hr))
 		return hr;
 
-	DevCon->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+	DevCon->OMSetRenderTargets(1, &RenderTargetView, depthStencelView);
+
+
+
+
+
+	D3D11_DEPTH_STENCIL_DESC depthstencildesc;
+	ZeroMemory(&depthstencildesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
+
+	depthstencildesc.DepthEnable = true;
+	depthstencildesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK::D3D11_DEPTH_WRITE_MASK_ALL;
+	depthstencildesc.DepthFunc = D3D11_COMPARISON_FUNC::D3D11_COMPARISON_LESS_EQUAL;
+
+	hr = Device->CreateDepthStencilState(&depthstencildesc, &depthStencilState);
+	if (FAILED(hr))
+	{
+		return false;
+	}
 
 	// Setup the viewport
 	D3D11_VIEWPORT vp;
@@ -423,6 +464,18 @@ HRESULT InitDevice()
 	DevCon->RSSetViewports(1, &vp);
 	Height = vp.Height;
 	Width = vp.Width;
+
+
+	//Create Rasterizer State
+	D3D11_RASTERIZER_DESC rasterizerDesc;
+	ZeroMemory(&rasterizerDesc, sizeof(D3D11_RASTERIZER_DESC));
+
+	rasterizerDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_SOLID;
+	rasterizerDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_BACK;
+	hr = Device->CreateRasterizerState(&rasterizerDesc, &rasterizerState);
+
+
+
 	// Compile the vertex shader
 	ID3DBlob* pVSBlob = nullptr;
 	hr = CompileShaderFromFile(L"Tutorial07.fx", "VS", "vs_4_0", &pVSBlob);
@@ -434,7 +487,7 @@ HRESULT InitDevice()
 	}
 
 	// Create the vertex shader
-	hr = g_pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &g_pVertexShader);
+	hr = Device->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &g_pVertexShader);
 	if (FAILED(hr))
 	{
 		pVSBlob->Release();
@@ -446,11 +499,12 @@ HRESULT InitDevice()
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
 	UINT numElements = ARRAYSIZE(layout);
 
 	// Create the input layout
-	hr = g_pd3dDevice->CreateInputLayout(layout, numElements, pVSBlob->GetBufferPointer(),
+	hr = Device->CreateInputLayout(layout, numElements, pVSBlob->GetBufferPointer(),
 		pVSBlob->GetBufferSize(), &g_pVertexLayout);
 	pVSBlob->Release();
 	if (FAILED(hr))
@@ -470,7 +524,7 @@ HRESULT InitDevice()
 	}
 
 	// Create the pixel shader
-	hr = g_pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &g_pPixelShader);
+	hr = Device->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &g_pPixelShader);
 	pPSBlob->Release();
 	if (FAILED(hr))
 		return hr;
@@ -517,7 +571,7 @@ HRESULT InitDevice()
 
 	D3D11_SUBRESOURCE_DATA InitData = {};
 	InitData.pSysMem = vertices;
-	hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pVertexBuffer);
+	hr = Device->CreateBuffer(&bd, &InitData, &g_pVertexBuffer);
 	if (FAILED(hr))
 		return hr;
 
@@ -554,7 +608,7 @@ HRESULT InitDevice()
 	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	InitData.pSysMem = indices;
-	hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pIndexBuffer);
+	hr = Device->CreateBuffer(&bd, &InitData, &g_pIndexBuffer);
 	if (FAILED(hr))
 		return hr;
 
@@ -568,42 +622,42 @@ HRESULT InitDevice()
 	bd.ByteWidth = sizeof(CBNeverChanges);
 	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	bd.CPUAccessFlags = 0;
-	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pCBNeverChanges);
+	hr = Device->CreateBuffer(&bd, nullptr, &g_pCBNeverChanges);
 	if (FAILED(hr))
 		return hr;
 	bd.ByteWidth = sizeof(CBChangeOnResize);
-	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pCBChangeOnResize);
+	hr = Device->CreateBuffer(&bd, nullptr, &g_pCBChangeOnResize);
 	if (FAILED(hr))
 		return hr;
 	bd.ByteWidth = sizeof(CBChangesEveryFrame);
-	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pCBChangesEveryFrame);
+	hr = Device->CreateBuffer(&bd, nullptr, &g_pCBChangesEveryFrame);
 	if (FAILED(hr))
 		return hr;
 	// Load the Textures
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/seafloor.dds", nullptr, &TexSeaFloor);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/MenuTex.dds", nullptr, &MenuText);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/ContainersNeeded.dds", nullptr, &TexContainersNeeded);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/Exit.dds", nullptr, &TexExit);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/Five.dds", nullptr, &TexFive);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/Four.dds", nullptr, &TexFour);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/Level.dds", nullptr, &TexLevel);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/one.dds", nullptr, &TexOne);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/Options.dds", nullptr, &TexOptions);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/Start.dds", nullptr, &TexStart);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/Three.dds", nullptr, &TexThree);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/TPFIVE.dds", nullptr, &TexTarPosFive);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/TPFOUR.dds", nullptr, &TexTarPosFour);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/TPONE.dds", nullptr, &TexTarPosOne);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/TPTHERE.dds", nullptr, &TexTarPosThree);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/TPTWO.dds", nullptr, &TexTarPosTwo);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/two.dds", nullptr, &TexTwo);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/BT.dds", nullptr, &BlankTexture);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/Brick.dds", nullptr, &BrickTexture);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/Marble.dds", nullptr, &MarbleTexture);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/Wall1.dds", nullptr, &Wall1Texture);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/Wall2.dds", nullptr, &Wall2Texture);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/Wall3.dds", nullptr, &Wall3Texture);
-	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"Textures/DDS/Target.dds", nullptr, &TargetTexture);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/seafloor.dds", nullptr, &TexSeaFloor);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/MenuTex.dds", nullptr, &MenuText);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/ContainersNeeded.dds", nullptr, &TexContainersNeeded);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Exit.dds", nullptr, &TexExit);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Five.dds", nullptr, &TexFive);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Four.dds", nullptr, &TexFour);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Level.dds", nullptr, &TexLevel);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/one.dds", nullptr, &TexOne);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Options.dds", nullptr, &TexOptions);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Start.dds", nullptr, &TexStart);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Three.dds", nullptr, &TexThree);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/TPFIVE.dds", nullptr, &TexTarPosFive);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/TPFOUR.dds", nullptr, &TexTarPosFour);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/TPONE.dds", nullptr, &TexTarPosOne);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/TPTHERE.dds", nullptr, &TexTarPosThree);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/TPTWO.dds", nullptr, &TexTarPosTwo);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/two.dds", nullptr, &TexTwo);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/BT.dds", nullptr, &BlankTexture);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Brick.dds", nullptr, &BrickTexture);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Marble.dds", nullptr, &MarbleTexture);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Wall1.dds", nullptr, &Wall1Texture);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Wall2.dds", nullptr, &Wall2Texture);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Wall3.dds", nullptr, &Wall3Texture);
+	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Target.dds", nullptr, &TargetTexture);
 	if (FAILED(hr))
 		return hr;
 	// Create the sample state
@@ -615,7 +669,7 @@ HRESULT InitDevice()
 	sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 	sampDesc.MinLOD = 0;
 	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-	hr = g_pd3dDevice->CreateSamplerState(&sampDesc, &g_pSamplerLinear);
+	hr = Device->CreateSamplerState(&sampDesc, &g_pSamplerLinear);
 	if (FAILED(hr))
 		return hr;
 
@@ -629,7 +683,6 @@ HRESULT InitDevice()
 	CBChangeOnResize cbChangesOnResize;
 	cbChangesOnResize.mProjection = XMMatrixTranspose(g_Projection);
 	DevCon->UpdateSubresource(g_pCBChangeOnResize, 0, nullptr, &cbChangesOnResize, 0, 0);
-
 	return S_OK;
 }
 //--------------------------------------------------------------------------------------
@@ -671,15 +724,15 @@ void CleanupDevice()
 	if (g_pVertexLayout) g_pVertexLayout->Release();
 	if (g_pVertexShader) g_pVertexShader->Release();
 	if (g_pPixelShader) g_pPixelShader->Release();
-	if (g_pDepthStencil) g_pDepthStencil->Release();
-	if (g_pDepthStencilView) g_pDepthStencilView->Release();
-	if (g_pRenderTargetView) g_pRenderTargetView->Release();
-	if (g_pSwapChain1) g_pSwapChain1->Release();
-	if (g_pSwapChain) g_pSwapChain->Release();
-	if (g_pImmediateContext1) g_pImmediateContext1->Release();
+	if (DepthStencilBuffer) DepthStencilBuffer->Release();
+	if (depthStencelView) depthStencelView->Release();
+	if (RenderTargetView) RenderTargetView->Release();
+	if (swapChain1) swapChain1->Release();
+	if (swapChain) swapChain->Release();
+	if (DevCon1) DevCon1->Release();
 	if (DevCon) DevCon->Release();
-	if (g_pd3dDevice1) g_pd3dDevice1->Release();
-	if (g_pd3dDevice) g_pd3dDevice->Release();
+	if (Device1) Device1->Release();
+	if (Device) Device->Release();
 }
 //--------------------------------------------------------------------------------------
 // Called every time the application receives a message
@@ -859,6 +912,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	return 0;
 }
+// Setup our lighting parameters
+XMFLOAT4 vLightDirs[2] =
+{
+	XMFLOAT4(-0.577f, 0.577f, -0.577f, 1.0f),
+	XMFLOAT4(0.0f, 0.0f, -1.0f, 1.0f),
+};
+XMFLOAT4 vLightColors[2] =
+{
+	XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f),
+	XMFLOAT4(0.5f, 0.0f, 0.0f, 1.0f)
+};
 void GameObject::Draw()
 {
 
@@ -887,7 +951,10 @@ void GameObject::Draw()
 	DrawMatrice = ScaleMatrix *RotationMatrix * PositionMatrix;
 	DrawBuffer.mWorld = XMMatrixTranspose(DrawMatrice);
 	DrawBuffer.vMeshColor = g_vMeshColor;
-
+	DrawBuffer.vLightDir[0] = vLightDirs[0];
+	DrawBuffer.vLightDir[1] = vLightDirs[1];
+	DrawBuffer.vLightColor[0] = vLightColors[0];
+	DrawBuffer.vLightColor[1] = vLightColors[1];
 	g_View = XMMatrixLookAtLH(Eye, At, Up);
 	cbNeverChanges.mView = XMMatrixTranspose(g_View);
 
@@ -922,7 +989,7 @@ void TextDebug()
 		player.Shots = 0;
 		player.DrawTexture = BlankTexture;
 		objPlayer.Setup(player);
-		setup = false;	
+		setup =	 false;	
 	}	/*
 	for (int C = 0; C < 6; C++)
 	{
@@ -1156,10 +1223,558 @@ void TextDebug()
 	Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 	objPlayer.Draw();
 }
+float NewColour;
+void LightingTest()
+{
 
-//--------------------------------------------------------------------------------------
-// Render a frame
-//--------------------------------------------------------------------------------------
+
+
+	if (setup == true)
+	{
+
+
+		BoundariesInit Bound;
+		Bound.Position = Vector3(0, 0, 0);
+		Bound.Rotation = Vector3(0, 0, 0);
+		Bound.Scale = Vector3(5, 0.5, 5);
+		Bound.colourR = 0;
+		Bound.colourG = 60;
+		Bound.colourB = 0;
+		Bound.targetchance = 0;
+		Bound.turretchance = 0;
+		Bound.leftWall = false;
+		Bound.rightWall = false;
+		Bound.frontwall = false;
+		Bound.backwall = false;
+		Bound.floor = false;
+		Bound.roof = false;
+		Bound.DrawTexture = BlankTexture;
+		Bound.TargetTexture = TargetTexture;
+		StartBlock.Setup(Bound);
+
+
+
+		playerInit player;
+		player.Position = Bound.Position;
+		player.Position.y += 5;
+		player.Scale = Vector3(0, 0, 0);
+		player.colourB = 1;
+		player.colourG = 1;
+		player.colourB = 1;
+		player.Health = 100;
+		player.Rotation = Vector3(0, 0, 0);
+		player.Shots = 0;
+		player.DrawTexture = BlankTexture;
+		objPlayer.Setup(player);
+
+
+		corridorsInit Temp;
+		Temp.Position = Vector3(Bound.Position.x + 10, Bound.Position.y, Bound.Position.z);
+		Temp.Rotation = Vector3(0, 0, 0);
+		Temp.Scale = Vector3(1, 1, 1);
+		Temp.colourR = 1;
+		Temp.colourG = 1;
+		Temp.colourB = 1;
+		Temp.floorLength = 50;
+		Temp.DrawTexture = MarbleTexture;
+		Temp.TargetTexture = TargetTexture;
+		Temp.CorridorDirection = "Forward";
+		BoundariesInit FirstBlock;
+		FirstBlock.frontwall = true;
+		FirstBlock.backwall = true;
+		FirstBlock.floor = true;
+		FirstBlock.roof = true;
+		FirstBlock.leftWall = true;
+		FirstBlock.rightWall = true;
+		Temp.FirstBlock = FirstBlock;
+		BoundariesInit LastBlock;
+		LastBlock.frontwall = true;
+		LastBlock.backwall = true;
+		LastBlock.floor = true;
+		LastBlock.roof = true;
+		LastBlock.leftWall = true;
+		LastBlock.rightWall = true;
+		Temp.LastBlock = LastBlock;
+		objLevel1Corridor[0].Setup(Temp);
+
+
+		Temp.Position = Vector3(Bound.Position.x - 10, Bound.Position.y, Bound.Position.z);
+		Temp.Rotation = Vector3(0, 0, 0);
+		Temp.Scale = Vector3(1, 1, 1);
+		Temp.colourR = 1;
+		Temp.colourG = 1;
+		Temp.colourB = 1;
+		Temp.floorLength = 50;
+		Temp.DrawTexture = BrickTexture;
+		Temp.TargetTexture = TargetTexture;
+		Temp.CorridorDirection = "Backward";
+		FirstBlock;
+		FirstBlock.frontwall = true;
+		FirstBlock.backwall = true;
+		FirstBlock.floor = true;
+		FirstBlock.roof = true;
+		FirstBlock.leftWall = true;
+		FirstBlock.rightWall = true;
+		Temp.FirstBlock = FirstBlock;
+		LastBlock;
+		LastBlock.frontwall = true;
+		LastBlock.backwall = true;
+		LastBlock.floor = true;
+		LastBlock.roof = true;
+		LastBlock.leftWall = true;
+		LastBlock.rightWall = true;
+		Temp.LastBlock = LastBlock;
+		objLevel1Corridor[1].Setup(Temp);
+
+
+		Temp.Position = Vector3(Bound.Position.x, Bound.Position.y, Bound.Position.z - 10);
+		Temp.Rotation = Vector3(0, 0, 0);
+		Temp.Scale = Vector3(1, 1, 1);
+		Temp.colourR = 1;
+		Temp.colourG = 1;
+		Temp.colourB = 1;
+		Temp.floorLength = 50;
+		Temp.DrawTexture = Wall2Texture;
+		Temp.TargetTexture = TargetTexture;
+		Temp.CorridorDirection = "Right";
+		FirstBlock;
+		FirstBlock.frontwall = true;
+		FirstBlock.backwall = true;
+		FirstBlock.floor = true;
+		FirstBlock.roof = true;
+		FirstBlock.leftWall = true;
+		FirstBlock.rightWall = true;
+		Temp.FirstBlock = FirstBlock;
+		LastBlock;
+		LastBlock.frontwall = true;
+		LastBlock.backwall = true;
+		LastBlock.floor = true;
+		LastBlock.roof = true;
+		LastBlock.leftWall = true;
+		LastBlock.rightWall = true;
+		Temp.LastBlock = LastBlock;
+		objLevel1Corridor[2].Setup(Temp);
+
+
+		Temp.Position = Vector3(Bound.Position.x, Bound.Position.y, Bound.Position.z + 10);
+		Temp.Rotation = Vector3(0, 0, 0);
+		Temp.Scale = Vector3(1, 1, 1);
+		Temp.colourR = 1;
+		Temp.colourG = 1;
+		Temp.colourB = 1;
+		Temp.floorLength = 50;
+		Temp.DrawTexture = Wall1Texture;
+		Temp.TargetTexture = TargetTexture;
+		Temp.CorridorDirection = "Left";
+		FirstBlock;
+		FirstBlock.frontwall = true;
+		FirstBlock.backwall = true;
+		FirstBlock.floor = true;
+		FirstBlock.roof = true;
+		FirstBlock.leftWall = true;
+		FirstBlock.rightWall = true;
+		Temp.FirstBlock = FirstBlock;
+		LastBlock;
+		LastBlock.frontwall = true;
+		LastBlock.backwall = true;
+		LastBlock.floor = true;
+		LastBlock.roof = true;
+		LastBlock.leftWall = true;
+		LastBlock.rightWall = true;
+		Temp.LastBlock = LastBlock;
+		objLevel1Corridor[3].Setup(Temp);
+
+
+
+		Temp.Position = Vector3(Bound.Position.x, Bound.Position.y + 10, Bound.Position.z);
+		Temp.Rotation = Vector3(0, 0, 0);
+		Temp.Scale = Vector3(1, 1, 1);
+		Temp.colourR = 1;
+		Temp.colourG = 1;
+		Temp.colourB = 1;
+		Temp.floorLength = 50;
+		Temp.DrawTexture = TexSeaFloor;
+		Temp.TargetTexture = TargetTexture;
+		Temp.CorridorDirection = "Up";
+		FirstBlock;
+		FirstBlock.frontwall = true;
+		FirstBlock.backwall = true;
+		FirstBlock.floor = true;
+		FirstBlock.roof = true;
+		FirstBlock.leftWall = true;
+		FirstBlock.rightWall = true;
+		Temp.FirstBlock = FirstBlock;
+		LastBlock;
+		LastBlock.frontwall = true;
+		LastBlock.backwall = true;
+		LastBlock.floor = true;
+		LastBlock.roof = true;
+		LastBlock.leftWall = true;
+		LastBlock.rightWall = true;
+		Temp.LastBlock = LastBlock;
+		objLevel1Corridor[4].Setup(Temp);
+
+		Temp.Position = Vector3(Bound.Position.x, Bound.Position.y - 10, Bound.Position.z);
+		Temp.Rotation = Vector3(0, 0, 0);
+		Temp.Scale = Vector3(1, 1, 1);
+		Temp.colourR = 1;
+		Temp.colourG = 1;
+		Temp.colourB = 1;
+		Temp.floorLength = 50;
+		Temp.DrawTexture = Wall3Texture;
+		Temp.TargetTexture = TargetTexture;
+		Temp.CorridorDirection = "Down";
+		FirstBlock;
+		FirstBlock.frontwall = true;
+		FirstBlock.backwall = true;
+		FirstBlock.floor = true;
+		FirstBlock.roof = true;
+		FirstBlock.leftWall = true;
+		FirstBlock.rightWall = true;
+		Temp.FirstBlock = FirstBlock;
+		LastBlock;
+		LastBlock.frontwall = true;
+		LastBlock.backwall = true;
+		LastBlock.floor = true;
+		LastBlock.roof = true;
+		LastBlock.leftWall = true;
+		LastBlock.rightWall = true;
+		Temp.LastBlock = LastBlock;
+		objLevel1Corridor[5].Setup(Temp);
+
+
+
+
+
+
+		GameObjectInit TempDebug;
+		TempDebug.position = Vector3(Bound.Position.x + 75.0f, Bound.Position.y + 75.0f, Bound.Position.z + 75.0f);
+		TempDebug.scale = Vector3(2, 2, 2);
+		TempDebug.DrawTexture = MarbleTexture;
+		TempDebug.ColourR = 0;
+		TempDebug.ColourG = 0;
+		TempDebug.ColourB = 0;
+		CollisonTester.Setup(TempDebug);
+
+		setup = false;
+
+	}
+
+	if (KeycodeW == true)
+	{
+		objPlayer.W = true;
+	}
+	else if (KeycodeW == false)
+	{
+		objPlayer.W = false;
+	}
+
+
+	if (KeycodeA == true)
+	{
+		objPlayer.A = true;
+
+	}
+	else if (KeycodeA == false)
+	{
+		objPlayer.A = false;
+	}
+
+	if (KeycodeS == true)
+	{
+		objPlayer.S = true;
+	}
+	else if (KeycodeS == false)
+	{
+		objPlayer.S = false;
+	}
+
+
+	if (KeycodeD == true)
+	{
+		objPlayer.D = true;
+	}
+	else if (KeycodeD == false)
+	{
+		objPlayer.D = false;
+	}
+
+
+	if (KeycodeUp == true)
+	{
+		objPlayer.UP = true;
+	}
+	else if (KeycodeUp == false)
+	{
+		objPlayer.UP = false;
+	}
+
+
+	if (KeycodeRight == true)
+
+	{
+		objPlayer.RIGHT = true;
+	}
+	else if (KeycodeRight == false)
+	{
+		objPlayer.RIGHT = false;
+	}
+
+
+	if (KeycodeDown == true)
+
+	{
+		objPlayer.DOWN = true;
+	}
+	else if (KeycodeDown == false)
+	{
+		objPlayer.DOWN = false;
+	}
+
+
+	if (KeycodeLeft == true)
+
+	{
+		objPlayer.LEFT = true;
+	}
+	else if (KeycodeLeft == false)
+	{
+		objPlayer.LEFT = false;
+	}
+
+
+
+	if (KeycodePlus == true)
+	{
+		objPlayer.PLUS = true;
+	}
+	else
+	{
+		objPlayer.PLUS = false;
+	}
+
+
+
+	if (KeycodeMinus == true)
+	{
+		objPlayer.MINUS = true;
+	}
+	else
+	{
+		objPlayer.MINUS = false;
+	}
+
+
+	if (KeycodeF == true)
+	{
+		objPlayer.F = true;
+	}
+	else
+	{
+		objPlayer.F = false;
+	}
+
+
+	if (KeycodeQ == true)
+	{
+		objPlayer.Q = true;
+	}
+	else if (KeycodeQ == false)
+	{
+		objPlayer.Q = false;
+	}
+
+
+	if (KeycodeE == true)
+	{
+		objPlayer.E = true;
+	}
+	else if (KeycodeE == false)
+	{
+		objPlayer.E = false;
+	}
+
+	if (KeycodeSpace == true)
+	{
+		objPlayer.SPACE = true;
+	}
+	else if (KeycodeSpace == false)
+	{
+		objPlayer.SPACE = false;
+	}
+
+
+
+	if (KeycodeShift == true)
+	{
+		objPlayer.SHIFT = true;
+	}
+	else if (KeycodeShift == false) {
+		objPlayer.SHIFT = false;
+	}
+
+
+
+	if (KeycodeLControl == true)
+	{
+		objPlayer.CONTROL = true;
+	}
+	else if (KeycodeLControl == false) {
+		objPlayer.CONTROL = false;
+	}
+
+
+	if (KeycodeX == true)
+	{
+		objPlayer.X = true;
+	}
+	else if (KeycodeX == false)
+	{
+		objPlayer.X = false;
+	}
+
+
+
+
+	objPlayer.Update();
+	//Camera
+	Camera.Position.x = -objPlayer.ForwardDirection.x;
+	Camera.Position.y = -objPlayer.ForwardDirection.y;
+	Camera.Position.z = -objPlayer.ForwardDirection.z;
+	Camera.Position = Camera.MultiplyVector(Camera.Position, 1.1f);
+	Camera.Position = Camera.VectorAdd(Camera.Position, objPlayer.Position);
+	Eye = XMVectorSet(Camera.Position.x, Camera.Position.y, Camera.Position.z, 0.0f);
+	At = XMVectorSet(objPlayer.Position.x, objPlayer.Position.y, objPlayer.Position.z, 0.0f);
+	Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	objLevel1Corridor[0].Update();
+}
+void DepthBufferTest()
+{
+	NewColour += 0.0001f;
+	if (setup == true)
+	{
+		GameObjectInit Object1;
+		Object1.position = Vector3(0, 0, -1.88945436);
+		Object1.scale = Vector3(1, 1, 1);
+		Object1.rotation = Vector3(0, 0, 0);
+		Object1.DrawTexture = MarbleTexture;
+		OBJ.Setup(Object1);
+		GameObjectInit Object2;
+		Object2.position = Vector3(0, 0, 2.08294034);
+		Object2.scale = Vector3(1, 1, 1);
+		Object2.rotation = Vector3(0, 0, 0);
+		Object2.DrawTexture = MarbleTexture;
+		OBJ2.Setup(Object2);
+		setup = false;
+	}
+
+	if (NewColour >= 5)
+	{
+		NewColour = 0;
+		int myRand = rand() % 255;
+		if (myRand > 128)
+			OBJ.Red = 255;
+		if (myRand > 50 && myRand < 128)
+			OBJ.Green = 255;
+		if (myRand < 50)
+			OBJ.Blue = 255;
+
+		myRand = rand() % 255;
+		if (myRand > 128)
+			OBJ2.Red = 255;
+		if (myRand > 50 && myRand < 128)
+			OBJ2.Green = 255;
+		if (myRand < 50)
+			OBJ2.Blue = 255;
+
+	}
+
+	if (OBJ.Red > 0)
+	{
+		OBJ.Red /= 1.0001F;
+	}
+	if (OBJ.Green > 0)
+	{
+		OBJ.Green /= 1.0001F;
+	}
+	if (OBJ.Blue > 0)
+	{
+		OBJ.Blue /= 1.0001F;
+	}
+
+
+	if (OBJ2.Red > 0)
+	{
+		OBJ2.Red /= 1.0001F;
+	}
+	if (OBJ2.Green > 0)
+	{
+		OBJ2.Green /= 1.0001F;
+	}
+	if (OBJ2.Blue > 0)
+	{
+		OBJ2.Blue /= 1.0001F;
+	}
+
+
+
+	if (KeycodeW == true)
+	{
+		OBJ.Position.z += 0.0005f;
+	}
+
+	if (KeycodeA == true)
+	{
+		OBJ.Position.x -= 0.0005f;
+	}
+
+	if (KeycodeS == true)
+	{
+		OBJ.Position.z -= 0.0005f;
+	}
+
+	if (KeycodeD == true)
+	{
+		OBJ.Position.x += 0.0005f;
+	}
+
+
+	if (KeycodeUp == true)
+	{
+		OBJ2.Position.z += 0.0005f;
+	}
+
+	if (KeycodeRight == true)
+	{
+		OBJ2.Position.x += 0.0005f;
+	}
+
+
+	if (KeycodeDown == true)
+
+	{
+		OBJ2.Position.z -= 0.0005f;
+	}
+
+
+	if (KeycodeLeft == true)
+
+	{
+		OBJ2.Position.x -= 0.0005f;
+	}   
+	Target Temp;
+
+	Eye = XMVectorSet(0.0f, 3.0f, -6.0f, 0.0f);
+	At = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	g_View = XMMatrixLookAtLH(Eye, At, Up);
+	Temp.Position = Vector3(0, 0, 0);
+	Temp.DrawTexture = TargetTexture;
+	Temp.Draw();
+
+	OBJ.Draw();
+	OBJ2.Draw();
+}
 void CollisionTest()
 {
 	
@@ -1394,6 +2009,16 @@ void CollisionTest()
 
 	}
 
+	if (KeycodeW == true)
+	{
+		objPlayer.W = true;
+	}
+	else if (KeycodeW == false)
+	{
+		objPlayer.W = false;
+	}
+
+
 	if (KeycodeA == true)
 	{
 		objPlayer.A = true;
@@ -1403,38 +2028,7 @@ void CollisionTest()
 	{
 		objPlayer.A = false;
 	}
-	if (KeycodeD == true)
-	{
-		objPlayer.D = true;
-	}
-	else if (KeycodeA == false)
-	{
-		objPlayer.D = false;
-	}
-	if (KeycodeQ == true)
-	{
-		objPlayer.Q = true;
-	}
-	else if (KeycodeQ == false)
-	{
-		objPlayer.Q = false;
-	}
-	if (KeycodeE == true)
-	{
-		objPlayer.E = true;
-	}
-	else if (KeycodeE == false)
-	{
-		objPlayer.E = false;
-	}
-	if (KeycodeW == true)
-	{
-		objPlayer.W = true;
-	}
-	else if (KeycodeW == false)
-	{
-		objPlayer.W = false;
-	}
+
 	if (KeycodeS == true)
 	{
 		objPlayer.S = true;
@@ -1443,59 +2037,19 @@ void CollisionTest()
 	{
 		objPlayer.S = false;
 	}
-	if (KeycodeSpace == true)
+
+
+	if (KeycodeD == true)
 	{
-		objPlayer.SPACE = true;
+		objPlayer.D = true;
 	}
-	else if (KeycodeSpace == false)
+	else if (KeycodeD == false)
 	{
-		objPlayer.SPACE = false;
-	}
-	if (KeycodeShift == true)
-	{
-		objPlayer.SHIFT = true;
-	}
-	else if (KeycodeShift == false) {
-		objPlayer.SHIFT = false;
-	}
-	if (KeycodeLControl == true)
-	{
-		objPlayer.CONTROL = true;
-	}
-	else if (KeycodeLControl == false) {
-		objPlayer.CONTROL = false;
-	}
-	if (KeycodeX == true)
-	{
-		objPlayer.X = true;
-	}
-	else if (KeycodeX == false)
-	{
-		objPlayer.X = false;
+		objPlayer.D = false;
 	}
 
-	if (KeycodeLeft == true)
-
-	{
-		objPlayer.LEFT = true;
-	}
-	else if (KeycodeLeft == false)
-	{
-		objPlayer.LEFT = false;
-	}
-
-	if (KeycodeRight == true)
-
-	{
-		objPlayer.RIGHT = true;
-	}
-	else if (KeycodeLeft == false)
-	{
-		objPlayer.RIGHT = false;
-	}
 
 	if (KeycodeUp == true)
-
 	{
 		objPlayer.UP = true;
 	}
@@ -1503,6 +2057,18 @@ void CollisionTest()
 	{
 		objPlayer.UP = false;
 	}
+
+
+	if (KeycodeRight == true)
+
+	{
+		objPlayer.RIGHT = true;
+	}
+	else if (KeycodeRight == false)
+	{
+		objPlayer.RIGHT = false;
+	}
+
 
 	if (KeycodeDown == true)
 
@@ -1515,6 +2081,18 @@ void CollisionTest()
 	}
 
 
+	if (KeycodeLeft == true)
+
+	{
+		objPlayer.LEFT = true;
+	}
+	else if (KeycodeLeft == false)
+	{
+		objPlayer.LEFT = false;
+	}
+
+
+
 	if (KeycodePlus == true)
 	{
 		objPlayer.PLUS = true;
@@ -1523,6 +2101,9 @@ void CollisionTest()
 	{
 		objPlayer.PLUS = false;
 	}
+
+
+
 	if (KeycodeMinus == true)
 	{
 		objPlayer.MINUS = true;
@@ -1531,6 +2112,7 @@ void CollisionTest()
 	{
 		objPlayer.MINUS = false;
 	}
+
 
 	if (KeycodeF == true)
 	{
@@ -1542,32 +2124,165 @@ void CollisionTest()
 	}
 
 
+	if (KeycodeQ == true)
+	{
+		objPlayer.Q = true;
+	}
+	else if (KeycodeQ == false)
+	{
+		objPlayer.Q = false;
+	}
+
+
+	if (KeycodeE == true)
+	{
+		objPlayer.E = true;
+	}
+	else if (KeycodeE == false)
+	{
+		objPlayer.E = false;
+	}
+
+	if (KeycodeSpace == true)
+	{
+		objPlayer.SPACE = true;
+	}
+	else if (KeycodeSpace == false)
+	{
+		objPlayer.SPACE = false;
+	}
+
+
+
+	if (KeycodeShift == true)
+	{
+		objPlayer.SHIFT = true;
+	}
+	else if (KeycodeShift == false) {
+		objPlayer.SHIFT = false;
+	}
+
+
+
+	if (KeycodeLControl == true)
+	{
+		objPlayer.CONTROL = true;
+	}
+	else if (KeycodeLControl == false) {
+		objPlayer.CONTROL = false;
+	}
+
+
+	if (KeycodeX == true)
+	{
+		objPlayer.X = true;
+	}
+	else if (KeycodeX == false)
+	{
+		objPlayer.X = false;
+	}
+
+
+
+
 	objPlayer.Update();
-	/*
+	
 	for (int C = 0; C < 6; C++)
 	{
 		if (objPlayer.Health > 0)
 		{
 			for (int a = 0; a < objLevel1Corridor[C].FloorLength; a++)
 			{
-				if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[a]))
+		
+
+				if (objLevel1Corridor[C].objFloors[a].FrontWall == true)
 				{
-					objLevel1Corridor[C].objFloors[a].Red += 1;
-					objLevel1Corridor[C].objFloors[a].Green += 2;
-					objLevel1Corridor[C].objFloors[a].Blue += 3;
+					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[a].objFrontWall))
+					{
+						objLevel1Corridor[C].objFloors[a].objFrontWall.Red += 1;
+						objLevel1Corridor[C].objFloors[a].objFrontWall.Green += 2;
+						objLevel1Corridor[C].objFloors[a].objFrontWall.Blue += 3;
+					}
 				}
-				if (objLevel1Corridor[C].objFloors[a].Red >= 0)
+
+				if (objLevel1Corridor[C].objFloors[a].BackWall == true)
 				{
-					objLevel1Corridor[C].objFloors[a].Red *= 0.9f;
+					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[a].objBackWall))
+					{
+						objLevel1Corridor[C].objFloors[a].objBackWall.Red += 1;
+						objLevel1Corridor[C].objFloors[a].objBackWall.Green += 2;
+						objLevel1Corridor[C].objFloors[a].objBackWall.Blue += 3;
+					}
 				}
-				if (objLevel1Corridor[C].objFloors[a].Green >= 0)
+
+
+
+				if (objLevel1Corridor[C].objFloors[a].LeftWall == true)
 				{
-					objLevel1Corridor[C].objFloors[a].Green *= 0.9f;
+					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[a].objLeftWall))
+					{
+						objLevel1Corridor[C].objFloors[a].objLeftWall.Red += 1;
+						objLevel1Corridor[C].objFloors[a].objLeftWall.Green += 2;
+						objLevel1Corridor[C].objFloors[a].objLeftWall.Blue += 3;
+					}
 				}
-				if (objLevel1Corridor[C].objFloors[a].Blue >= 0)
+
+
+				if (objLevel1Corridor[C].objFloors[a].RightWall == true)
 				{
-					objLevel1Corridor[C].objFloors[a].Blue *= 0.9f;
+					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[a].objRightWall))
+					{
+						objLevel1Corridor[C].objFloors[a].objRightWall.Red += 1;
+						objLevel1Corridor[C].objFloors[a].objRightWall.Green += 2;
+						objLevel1Corridor[C].objFloors[a].objRightWall.Blue += 3;
+					}
 				}
+
+
+				if (objLevel1Corridor[C].objFloors[a].Roof == true)
+				{
+					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[a].objRoof))
+					{
+						objLevel1Corridor[C].objFloors[a].objRoof.Red += 1;
+						objLevel1Corridor[C].objFloors[a].objRoof.Green += 2;
+						objLevel1Corridor[C].objFloors[a].objRoof.Blue += 3;
+					}
+				}
+
+
+				if (objLevel1Corridor[C].objFloors[a].Floor == true)
+				{
+					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[a].objFloor))
+					{
+						objLevel1Corridor[C].objFloors[a].objFloor.Red += 1;
+						objLevel1Corridor[C].objFloors[a].objFloor.Green += 2;
+						objLevel1Corridor[C].objFloors[a].objFloor.Blue += 3;
+					}
+				}
+				objLevel1Corridor[C].objFloors[a].objFrontWall.Red *= 0.99f;
+				objLevel1Corridor[C].objFloors[a].objFrontWall.Green *= 0.99f;
+				objLevel1Corridor[C].objFloors[a].objFrontWall.Blue *= 0.99f;
+
+				objLevel1Corridor[C].objFloors[a].objBackWall.Red *= 0.99f;
+				objLevel1Corridor[C].objFloors[a].objBackWall.Green *= 0.99f;
+				objLevel1Corridor[C].objFloors[a].objBackWall.Blue *= 0.99f;
+
+
+				objLevel1Corridor[C].objFloors[a].objLeftWall.Red *= 0.99f;
+				objLevel1Corridor[C].objFloors[a].objLeftWall.Green *= 0.99f;
+				objLevel1Corridor[C].objFloors[a].objLeftWall.Blue *= 0.99f;
+
+				objLevel1Corridor[C].objFloors[a].objRightWall.Red *= 0.99f;
+				objLevel1Corridor[C].objFloors[a].objRightWall.Green *= 0.99f;
+				objLevel1Corridor[C].objFloors[a].objRightWall.Blue *= 0.99f;
+
+				objLevel1Corridor[C].objFloors[a].objRoof.Red *= 0.99f;
+				objLevel1Corridor[C].objFloors[a].objRoof.Green *= 0.99f;
+				objLevel1Corridor[C].objFloors[a].objRoof.Blue *= 0.99f;
+
+				objLevel1Corridor[C].objFloors[a].objFloor.Red *= 0.99f;
+				objLevel1Corridor[C].objFloors[a].objFloor.Green *= 0.99f;
+				objLevel1Corridor[C].objFloors[a].objFloor.Blue *= 0.99f;
 			}
 		}
 	}
@@ -1615,7 +2330,7 @@ void CollisionTest()
 			}
 		}
 	}
-	*/
+	
 	//Camera
 	Camera.Position.x = -objPlayer.ForwardDirection.x;
 	Camera.Position.y = -objPlayer.ForwardDirection.y;
@@ -1628,16 +2343,184 @@ void CollisionTest()
 
 	CollisonTester.Update();
 	objLevel1Corridor[0].Update();
-	//objLevel1Corridor[1].Update();
-	//objLevel1Corridor[2].Update();
-	//objLevel1Corridor[3].Update();
-	//objLevel1Corridor[4].Update();
-	//objLevel1Corridor[5].Update();
-	//StartBlock.Update();
-
 }
 void Level1()
 {
+	if (KeycodeW == true)
+	{
+		objPlayer.W = true;
+	}
+	else if (KeycodeW == false)
+	{
+		objPlayer.W = false;
+	}
+
+
+	if (KeycodeA == true)
+	{
+		objPlayer.A = true;
+
+	}
+	else if (KeycodeA == false)
+	{
+		objPlayer.A = false;
+	}
+
+	if (KeycodeS == true)
+	{
+		objPlayer.S = true;
+	}
+	else if (KeycodeS == false)
+	{
+		objPlayer.S = false;
+	}
+
+
+	if (KeycodeD == true)
+	{
+		objPlayer.D = true;
+	}
+	else if (KeycodeD == false)
+	{
+		objPlayer.D = false;
+	}
+
+
+	if (KeycodeUp == true)
+	{
+		objPlayer.UP = true;
+	}
+	else if (KeycodeUp == false)
+	{
+		objPlayer.UP = false;
+	}
+
+
+	if (KeycodeRight == true)
+
+	{
+		objPlayer.RIGHT = true;
+	}
+	else if (KeycodeRight == false)
+	{
+		objPlayer.RIGHT = false;
+	}
+
+
+	if (KeycodeDown == true)
+
+	{
+		objPlayer.DOWN = true;
+	}
+	else if (KeycodeDown == false)
+	{
+		objPlayer.DOWN = false;
+	}
+
+
+	if (KeycodeLeft == true)
+
+	{
+		objPlayer.LEFT = true;
+	}
+	else if (KeycodeLeft == false)
+	{
+		objPlayer.LEFT = false;
+	}
+
+
+
+	if (KeycodePlus == true)
+	{
+		objPlayer.PLUS = true;
+	}
+	else
+	{
+		objPlayer.PLUS = false;
+	}
+
+
+
+	if (KeycodeMinus == true)
+	{
+		objPlayer.MINUS = true;
+	}
+	else
+	{
+		objPlayer.MINUS = false;
+	}
+
+
+	if (KeycodeF == true)
+	{
+		objPlayer.F = true;
+	}
+	else
+	{
+		objPlayer.F = false;
+	}
+
+
+	if (KeycodeQ == true)
+	{
+		objPlayer.Q = true;
+	}
+	else if (KeycodeQ == false)
+	{
+		objPlayer.Q = false;
+	}
+
+
+	if (KeycodeE == true)
+	{
+		objPlayer.E = true;
+	}
+	else if (KeycodeE == false)
+	{
+		objPlayer.E = false;
+	}
+
+	if (KeycodeSpace == true)
+	{
+		objPlayer.SPACE = true;
+	}
+	else if (KeycodeSpace == false)
+	{
+		objPlayer.SPACE = false;
+	}
+
+
+
+	if (KeycodeShift == true)
+	{
+		objPlayer.SHIFT = true;
+	}
+	else if (KeycodeShift == false) {
+		objPlayer.SHIFT = false;
+	}
+
+
+
+	if (KeycodeLControl == true)
+	{
+		objPlayer.CONTROL = true;
+	}
+	else if (KeycodeLControl == false) {
+		objPlayer.CONTROL = false;
+	}
+
+
+	if (KeycodeX == true)
+	{
+		objPlayer.X = true;
+	}
+	else if (KeycodeX == false)
+	{
+		objPlayer.X = false;
+	}
+
+
+
 	if (setup == true)
 	{
 
@@ -1866,6 +2749,7 @@ void Level1()
 	CollisonTester.Setup(TempDebug);
 	
 	}
+
 	for (int x = 0; x < 6; x++)
 	{
 		for (int i = 0; i < 50; i++)
@@ -1895,145 +2779,16 @@ void Level1()
 			}
 		}
 	}
-	if (KeycodeA == true)
-	{
-		objPlayer.A = true;
 
-	}
-	else if (KeycodeA == false)
-	{
-		objPlayer.A = false;
-	}
-	if (KeycodeD == true)
-	{
-		objPlayer.D = true;
-	}
-	else if (KeycodeA == false)
-	{
-		objPlayer.D = false;
-	}
-	if (KeycodeQ == true)
-	{
-		objPlayer.Q = true;
-	}
-	else if (KeycodeQ == false)
-	{
-		objPlayer.Q = false;
-	}
-	if (KeycodeE == true)
-	{
-		objPlayer.E = true;
-	}
-	else if (KeycodeE == false)
-	{
-		objPlayer.E = false;
-	}
-	if (KeycodeW == true)
-	{
-		objPlayer.W = true;
-	}
-	else if (KeycodeW == false)
-	{
-		objPlayer.W = false;
-	}
-	if (KeycodeS == true)
-	{
-		objPlayer.S = true;
-	}
-	else if (KeycodeS == false)
-	{
-		objPlayer.S = false;
-	}
-	if (KeycodeSpace == true)
-	{
-		objPlayer.SPACE = true;
-	}
-	else if (KeycodeSpace == false)
-	{
-		objPlayer.SPACE = false;
-	}
-	if (KeycodeShift == true)
-	{
-		objPlayer.SHIFT = true;
-	}
-	else if (KeycodeShift == false) {
-		objPlayer.SHIFT = false;
-	}
-	if (KeycodeLControl == true)
-	{
-		objPlayer.CONTROL = true;
-	}
-	else if (KeycodeLControl == false) {
-		objPlayer.CONTROL = false;
-	}
-	if (KeycodeX == true)
-	{
-		objPlayer.X = true;
-	}
-	else if (KeycodeX == false)
-	{
-		objPlayer.X = false;
-	}
-	if (KeycodeLeft == true)
 
-	{
-		objPlayer.LEFT = true;
-	}
-	else if (KeycodeLeft == false)
-	{
-		objPlayer.LEFT = false;
-	}
-	if (KeycodeRight == true)
 
-	{
-		objPlayer.RIGHT = true;
-	}
-	else if (KeycodeLeft == false)
-	{
-		objPlayer.RIGHT = false;
-	}
-	if (KeycodeUp == true)
 
-	{
-		objPlayer.UP = true;
-	}
-	else if (KeycodeUp == false)
-	{
-		objPlayer.UP = false;
-	}
-	if (KeycodeDown == true)
+	
 
-	{
-		objPlayer.DOWN = true;
-	}
-	else if (KeycodeDown == false)
-	{
-		objPlayer.DOWN = false;
-	}
-	if (KeycodePlus == true)
-	{
-		objPlayer.PLUS = true;
-	}
-	else
-	{
-		objPlayer.PLUS = false;
-	}
-	if (KeycodeMinus == true)
-	{
-		objPlayer.MINUS = true;
-	}
-	else
-	{
-		objPlayer.MINUS = false;
-	}
-	if (KeycodeF == true)
-	{
-		objPlayer.F = true;
-	}
-	else
-	{
-		objPlayer.F = false;
-	}
+
+
+
+
 	objPlayer.Update();
 	//Camera
 	Camera.Position.x = -objPlayer.ForwardDirection.x;
@@ -2041,9 +2796,9 @@ void Level1()
 	Camera.Position.z = -objPlayer.ForwardDirection.z;
 	Camera.Position = Camera.MultiplyVector(Camera.Position, 1.1f);
 	Camera.Position = Camera.VectorAdd(Camera.Position, objPlayer.Position);
-	XMVECTOR Eye = XMVectorSet(Camera.Position.x, Camera.Position.y, Camera.Position.z, 0.0f);
-	XMVECTOR At = XMVectorSet(objPlayer.Position.x, objPlayer.Position.y, objPlayer.Position.z, 0.0f);
-	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	 Eye = XMVectorSet(Camera.Position.x, Camera.Position.y, Camera.Position.z, 0.0f);
+	 At = XMVectorSet(objPlayer.Position.x, objPlayer.Position.y, objPlayer.Position.z, 0.0f);
+	 Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 	g_View = XMMatrixLookAtLH(Eye, At, Up);
 	cbNeverChanges.mView = XMMatrixTranspose(g_View);
 	//Corridors draw them selves and require to be updated after 
@@ -2074,26 +2829,14 @@ void Level5()
 }
 double Timer;
 double DeltaTime = 0;
-std::unique_ptr<DirectX::SpriteBatch> spriteBatch;
-std::unique_ptr<DirectX::SpriteFont> spriteFont;
-ID3D11BlendState * Blend;
-
 void Render()
 {
-	
-
 	Stopwatch FrameTime;
 	FrameTime.Start();
-
-	
 	UINT stride = sizeof(SimpleVertex);
 	UINT offset = 0;
-	//time is up here... 
-
 	level1 = false;
 	Debug = true;
-
-
 	D3D11_VIEWPORT vp;
 	vp.Width = Width;
 	vp.Height = Height;
@@ -2102,31 +2845,24 @@ void Render()
 	vp.TopLeftX = 0;
 	vp.TopLeftY = 0;
 
-	DevCon->RSSetViewports(1, &vp);
-
-	DevCon->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
-
+	DevCon->ClearRenderTargetView(RenderTargetView, Colors::MidnightBlue);
+	DevCon->ClearDepthStencilView(depthStencelView, D3D11_CLEAR_STENCIL ||D3D11_CLEAR_DEPTH , 1.0f, 0);
 	DevCon->IASetInputLayout(g_pVertexLayout);
-
-	DevCon->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
-	// Set index buffer
-	DevCon->IASetIndexBuffer(g_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
-
-	// Set primitive topology
 	DevCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	// Initialize the world matrices
+	DevCon->RSSetState(rasterizerState);
+	DevCon->OMSetDepthStencilState(depthStencilState,0);
+	DevCon->OMSetRenderTargets(1, &RenderTargetView, depthStencelView);
+	DevCon->RSSetViewports(1, &vp);
+	DevCon->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
+	DevCon->IASetIndexBuffer(g_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
 	g_World = XMMatrixIdentity();
-
-
-	// Initialize the projection matrix
-	g_Projection = XMMatrixPerspectiveFovLH(XM_PIDIV4, Width / Height, 0.01f, 1000.0f);
-
+	g_Projection = XMMatrixPerspectiveFovLH(XM_PIDIV4, Width / Height, 0.01f, 10000.0f);
 	CBChangeOnResize cbChangesOnResize;
 	cbChangesOnResize.mProjection = XMMatrixTranspose(g_Projection);
 	DevCon->UpdateSubresource(g_pCBChangeOnResize, 0, nullptr, &cbChangesOnResize, 0, 0);
-	DevCon->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
-	DevCon->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	//Clear Render Target 
+
 
 
 	if (level1 == true)
@@ -2136,7 +2872,9 @@ void Render()
 	if (Debug == true)
 	{
 		//TextDebug();
-		CollisionTest();
+	//	CollisionTest();
+		//DepthBufferTest();
+		LightingTest();
 	}
 		
 
@@ -2165,15 +2903,16 @@ wstring DText = L"Frame Time = ";
 DText += DET;
 const wchar_t *Text2 = DText.c_str();
 
+//Text
+spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
+spriteFont = std::make_unique<DirectX::SpriteFont>(Device, L"Text/comic_sans_ms_16.spritefont");
 
-//spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
-//spriteFont = std::make_unique<DirectX::SpriteFont>(g_pd3dDevice, L"Text/comic_sans_ms_16.spritefont");
-//spriteBatch->Begin();
-//spriteFont->DrawString(spriteBatch.get(), Text, XMFLOAT2(0, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-//spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-//spriteBatch->End();
+spriteBatch->Begin();
+spriteFont->DrawString(spriteBatch.get(), Text, XMFLOAT2(0, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+spriteBatch->End();
 
 
-g_pSwapChain->Present(0, 0);
+swapChain->Present(0, 0);
 DeltaTime = FrameTime.ElapsedMilliseconds();
 }

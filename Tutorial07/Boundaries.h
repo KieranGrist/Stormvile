@@ -14,7 +14,6 @@
 class Boundaries : public Target
 {
 public:
-	GameObject Boundary;
 	int targetchance, turretchance;
 	bool FrontWall;
 	bool BackWall;

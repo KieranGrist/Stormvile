@@ -32,6 +32,7 @@ void GameObject::Update()
 {
 	MinExtent = VectorSub(Position, Vector3(1, 1, 1));
 	MaxExtent = VectorAdd(Position, Vector3(1, 1, 1));
+	
 	Draw();
 }
 GameObject::~GameObject()
