@@ -115,9 +115,6 @@ ID3D11ShaderResourceView* Wall2Texture;
 ID3D11ShaderResourceView* TurretTexture;
 ID3D11ShaderResourceView* TargetTexture;
 ID3D11ShaderResourceView* Wall3Texture;
-
-
-
 ID3D11Device*                       Device = nullptr;
 ID3D11DeviceContext*                DevCon = nullptr;
 IDXGISwapChain*                     swapChain = nullptr;
@@ -214,7 +211,7 @@ HRESULT InitWindow(HINSTANCE hInstance, int nCmdShow)
 
 	// Create window
 	g_hInst = hInstance;
-	RECT rc = { 0, 0, 800, 600 };
+	RECT rc = { 0, 0, 1920, 1080 };
 	AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
 	g_hWnd = CreateWindow(L"TutorialWindowClass", L"Direct3D 11 Tutorial 7",
 		WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
@@ -913,19 +910,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 // Setup our lighting parameters
-XMFLOAT4 vLightDirs[2] =
-{
-	XMFLOAT4(-0.577f, 0.577f, -0.577f, 1.0f),
-	XMFLOAT4(0.0f, 0.0f, -1.0f, 1.0f),
-};
-XMFLOAT4 vLightColors[2] =
-{
-	XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f),
-	XMFLOAT4(0.5f, 0.0f, 0.0f, 1.0f)
-};
+
 void GameObject::Draw()
 {
-
+	g_View = XMMatrixLookAtLH(Eye, At, Up);
 	XMMATRIX DrawMatrice;
 	XMMATRIX PositionMatrix;
 
@@ -947,6 +935,49 @@ void GameObject::Draw()
 		Scale.y,
 		Scale.z);
 
+	// Update our time
+	static float t = 0.0f;
+	if (g_driverType == D3D_DRIVER_TYPE_REFERENCE)
+	{
+		t += (float)XM_PI * 0.0125f;
+	}
+	else
+	{
+		static ULONGLONG timeStart = 0;
+		ULONGLONG timeCur = GetTickCount64();
+		if (timeStart == 0)
+			timeStart = timeCur;
+		t = (timeCur - timeStart) / 1000.0f;
+	}
+
+	// Rotate cube around the origin
+	g_World = XMMatrixRotationY(t);
+
+	// Setup our lighting parameters
+	XMFLOAT4 vLightDirs[2] =
+	{
+		XMFLOAT4(-0.577f, 0.577f, -0.577f, 1.0f),
+		XMFLOAT4(0.0f, 0.0f, -1.0f, 1.0f),
+	};
+
+	XMFLOAT4 vLightColors[2] =
+	{
+		XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f),
+		XMFLOAT4(0.5f, 0.0f, 0.0f, 1.0f)
+	};
+
+
+
+
+
+
+	// Rotate the second light around the origin
+	XMMATRIX mRotate = XMMatrixRotationY(-2.0f * t);
+	XMVECTOR vLightDir = XMLoadFloat4(&vLightDirs[1]);
+	vLightDir = XMVector3Transform(vLightDir, mRotate);
+	XMStoreFloat4(&vLightDirs[1], vLightDir);
+
+
 
 	DrawMatrice = ScaleMatrix *RotationMatrix * PositionMatrix;
 	DrawBuffer.mWorld = XMMatrixTranspose(DrawMatrice);
@@ -955,8 +986,10 @@ void GameObject::Draw()
 	DrawBuffer.vLightDir[1] = vLightDirs[1];
 	DrawBuffer.vLightColor[0] = vLightColors[0];
 	DrawBuffer.vLightColor[1] = vLightColors[1];
-	g_View = XMMatrixLookAtLH(Eye, At, Up);
+
 	cbNeverChanges.mView = XMMatrixTranspose(g_View);
+
+
 
 	DevCon->UpdateSubresource(g_pCBChangesEveryFrame, 0, nullptr, &DrawBuffer, 0, 0);
 	DevCon->UpdateSubresource(g_pCBNeverChanges, 0, nullptr, &cbNeverChanges, 0, 0);
@@ -969,6 +1002,29 @@ void GameObject::Draw()
 	DevCon->PSSetShaderResources(0, 1, &DrawTexture);
 	DevCon->PSSetSamplers(0, 1, &g_pSamplerLinear);
 	DevCon->DrawIndexed(36, 0, 0);
+
+
+
+	
+	for (int m = 0; m < 2; m++)
+	{
+		XMMATRIX mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&vLightDirs[m]));
+		XMMATRIX mLightScale = XMMatrixScaling(0.2f, 0.2f, 0.2f);
+		mLight = mLightScale * mLight;
+
+		// Update the world variable to reflect the current light
+		DrawBuffer.mWorld = XMMatrixTranspose(mLight);
+		DrawBuffer.vMeshColor = vLightColors[m];
+
+
+		DevCon->UpdateSubresource(g_pCBChangesEveryFrame, 0, nullptr, &DrawBuffer, 0, 0);
+		DevCon->UpdateSubresource(g_pCBNeverChanges, 0, nullptr, &cbNeverChanges, 0, 0);
+
+		DevCon->PSSetSamplers(0, 1, &g_pSamplerLinear);
+		DevCon->DrawIndexed(36, 0, 0);
+	}
+
+
 
 }
 
@@ -2828,7 +2884,7 @@ void Level5()
 
 }
 double Timer;
-double DeltaTime = 0;
+double DeltaTime = 0;	
 void Render()
 {
 	Stopwatch FrameTime;
@@ -2863,7 +2919,21 @@ void Render()
 
 	//Clear Render Target 
 
+	static float t = 0.0f;
+	if (g_driverType == D3D_DRIVER_TYPE_REFERENCE)
+	{
+		t += (float)XM_PI * 0.0125f;
+	}
+	else
+	{
+		static ULONGLONG timeStart = 0;
+		ULONGLONG timeCur = GetTickCount64();
+		if (timeStart == 0)
+			timeStart = timeCur;
+		t = (timeCur - timeStart) / 1000.0f;
+	}
 
+	
 
 	if (level1 == true)
 	{

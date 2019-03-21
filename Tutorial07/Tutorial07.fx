@@ -48,14 +48,12 @@ PS_INPUT VS( VS_INPUT input )
     output.Pos = mul( output.Pos, Projection );
 	output.Tex = input.Tex;
 	output.Norm = mul(float4(input.Norm, 1), World).xyz;
-
-    
     return output;
 }
 
 float4 PSSolid(PS_INPUT input) : SV_Target
 {
-	return vMeshColor;
+	return txDiffuse.Sample(samLinear, input.Tex) * vMeshColor;
 }
 
 //--------------------------------------------------------------------------------------
@@ -73,6 +71,8 @@ float4 PS( PS_INPUT input) : SV_Target
 		finalColor += saturate(dot((float3)vLightDir[i], input.Norm));
 	}
 	//finalColor *= vMeshColor;
-    return txDiffuse.Sample( samLinear, input.Tex ) * finalColor;
+	finalColor.a = 1;
+     return txDiffuse.Sample( samLinear, input.Tex ) * finalColor;
+
 }
 
