@@ -1,5 +1,6 @@
 ﻿  Stormvile.cpp
 n:\github\stormvile\tutorial07\stopwatch.h(124): warning C4800: 'BOOL': forcing value to bool 'true' or 'false' (performance warning)
 n:\github\stormvile\tutorial07\stormvile.cpp(153): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+Boundaries.obj : warning LNK4075: ignoring '/EDITANDCONTINUE' due to '/SAFESEH' specification
   Tutorial07_2015.vcxproj -> N:\GitHub\Stormvile\Debug\Stormvile.exe
   Tutorial07_2015.vcxproj -> N:\GitHub\Stormvile\Debug\Stormvile.pdb (Full PDB)

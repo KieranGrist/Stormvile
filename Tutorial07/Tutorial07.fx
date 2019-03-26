@@ -16,8 +16,8 @@ cbuffer cbChangesEveryFrame : register( b2 )
 {
     matrix World;
     float4 vMeshColor;
-	float4 vLightDir[2];
-	float4 vLightColor[2];
+	float4 vLightDir;
+	float4 vLightColor;
 };
 
 
@@ -66,10 +66,8 @@ float4 PS( PS_INPUT input) : SV_Target
 	float4 finalColor = 0;
 
 	//do NdotL lighting for 2 lights
-	for (int i = 0; i<2; i++)
-	{
-		finalColor += saturate(dot((float3)vLightDir[i], input.Norm));
-	}
+	finalColor += saturate(dot((float3)vLightDir, input.Norm) * vLightColor);
+	
 	//finalColor *= vMeshColor;
 	finalColor.a = 1;
      return txDiffuse.Sample( samLinear, input.Tex ) * finalColor;
