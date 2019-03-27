@@ -46,24 +46,38 @@ struct SimpleVertex
 	Vector3 Pos;
 	Vector2 Tex;
 	Vector3 Normal;
-};
+	Vector4 color;
 
+};
+//Creates View Buffer
 struct CBNeverChanges
 {
 	XMMATRIX mView;
 };
-
+//Creates Projection Buffer
 struct CBChangeOnResize
 {
 	XMMATRIX mProjection;
 };
-
+//Creates Object Buffer
 struct CBChangesEveryFrame
 {
 	XMMATRIX mWorld;
 	XMFLOAT4 vMeshColor;
-	XMFLOAT4  vLightDir;
-XMFLOAT4 vLightColor;
+};
+//Creates Lighting Buffer
+struct CBLightingBuffer
+{
+	XMMATRIX Ignore;
+	XMFLOAT3 globalAmbinet;
+	XMFLOAT3 lightColor;
+	XMFLOAT3 lightPosition;
+	XMFLOAT3 eyePosition;
+	XMFLOAT3 Ke;
+	XMFLOAT3 Ka;
+	XMFLOAT3 Kd;
+	XMFLOAT3 Ks;
+	float  shininess;
 };
 D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
 D3D11_TEXTURE2D_DESC descDepth = {};
@@ -90,6 +104,8 @@ ID3D11Buffer*                       g_pIndexBuffer = nullptr;
 ID3D11Buffer*                       g_pCBNeverChanges = nullptr;
 ID3D11Buffer*                       g_pCBChangeOnResize = nullptr;
 ID3D11Buffer*                       g_pCBChangesEveryFrame = nullptr;
+ID3D11Buffer*    g_pCBLightBuffer = nullptr;
+
 ID3D11ShaderResourceView* TexSeaFloor;
 ID3D11ShaderResourceView* TexContainersNeeded;
 ID3D11ShaderResourceView* TexExit;
@@ -130,7 +146,7 @@ ID3D11SamplerState*                 g_pSamplerLinear = nullptr;
 XMMATRIX                            g_World;
 XMMATRIX                            g_View;
 XMMATRIX                            g_Projection;
-XMFLOAT4                           g_vMeshColor(0.7f, 0.7f, 0.7f,1);
+XMFLOAT4                           g_vMeshColor(0.7f, 0.7f, 0.7f, 1);
 
 
 
@@ -496,7 +512,8 @@ HRESULT InitDevice()
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
 	UINT numElements = ARRAYSIZE(layout);
 
@@ -630,6 +647,12 @@ HRESULT InitDevice()
 	hr = Device->CreateBuffer(&bd, nullptr, &g_pCBChangesEveryFrame);
 	if (FAILED(hr))
 		return hr;
+
+	bd.ByteWidth = sizeof(CBLightingBuffer);
+	hr = Device->CreateBuffer(&bd, nullptr, &g_pCBLightBuffer);
+	if (FAILED(hr))
+		return hr;
+
 	// Load the Textures
 	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/seafloor.dds", nullptr, &TexSeaFloor);
 	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/MenuTex.dds", nullptr, &MenuText);
@@ -716,6 +739,7 @@ void CleanupDevice()
 	if (g_pCBNeverChanges) g_pCBNeverChanges->Release();
 	if (g_pCBChangeOnResize) g_pCBChangeOnResize->Release();
 	if (g_pCBChangesEveryFrame) g_pCBChangesEveryFrame->Release();
+	if (g_pCBLightBuffer) g_pCBLightBuffer->Release();
 	if (g_pVertexBuffer) g_pVertexBuffer->Release();
 	if (g_pIndexBuffer) g_pIndexBuffer->Release();
 	if (g_pVertexLayout) g_pVertexLayout->Release();
@@ -734,7 +758,7 @@ void CleanupDevice()
 //--------------------------------------------------------------------------------------
 // Called every time the application receives a message
 //--------------------------------------------------------------------------------------
-bool KeycodeQ, KeycodeE, KeycodeW, KeycodeS, KeycodeA, KeycodeD, KeycodeX, KeycodeSpace, KeycodeShift, KeycodeLControl, KeycodeLeft,KeycodeRight,KeycodeUp,KeycodeDown, KeycodePlus,KeycodeMinus,KeycodeF;
+bool KeycodeQ, KeycodeE, KeycodeW, KeycodeS, KeycodeA, KeycodeD, KeycodeX, KeycodeSpace, KeycodeShift, KeycodeLControl, KeycodeLeft, KeycodeRight, KeycodeUp, KeycodeDown, KeycodePlus, KeycodeMinus, KeycodeF;
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	PAINTSTRUCT ps;
@@ -805,7 +829,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			KeycodeLeft = true;
 			wParam = 0;
 			break;
-		case 39: 
+		case 39:
 			KeycodeRight = true;
 			wParam = 0;
 			break;
@@ -911,6 +935,63 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 // Setup our lighting parameters
 
+XMFLOAT4 vLightDirs =
+{
+	XMFLOAT4(Camera.Position.x, Camera.Position.y, Camera.Position.z, 1.0f),
+};
+
+XMFLOAT4 vLightColors =
+{
+	XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f)
+};
+
+//void GameObject::Draw()
+//{
+//	g_View = XMMatrixLookAtLH(Eye, At, Up);
+//	XMMATRIX DrawMatrice;
+//	XMMATRIX PositionMatrix;
+//
+//	CBChangesEveryFrame DrawBuffer;
+//	g_vMeshColor.x = Red;
+//	g_vMeshColor.y = Green;
+//	g_vMeshColor.z = Blue;
+//	PositionMatrix = XMMatrixTranslation(Position.x,
+//		Position.y,
+//		Position.z);
+//	XMMATRIX RotationMatrix;
+//	float X, Y, Z;
+//	X = Rotation.x;
+//	Y = Rotation.y;
+//	Z = Rotation.z;
+//
+//	RotationMatrix = Matrix::CreateFromYawPitchRoll(X, Y, Z);
+//	XMMATRIX ScaleMatrix = XMMatrixScaling(Scale.x,
+//		Scale.y,
+//		Scale.z);
+//
+//
+//	// Setup our lighting parameters
+//
+//	DrawMatrice = ScaleMatrix * RotationMatrix * PositionMatrix;
+//	DrawBuffer.mWorld = XMMatrixTranspose(DrawMatrice);
+//	DrawBuffer.vMeshColor = g_vMeshColor;
+//	DrawBuffer.vLightDir = vLightDirs;
+//	DrawBuffer.vLightColor = vLightColors;
+//
+//	cbNeverChanges.mView = XMMatrixTranspose(g_View);
+//	DevCon->UpdateSubresource(g_pCBChangesEveryFrame, 0, nullptr, &DrawBuffer, 0, 0);
+//	DevCon->UpdateSubresource(g_pCBNeverChanges, 0, nullptr, &cbNeverChanges, 0, 0);
+//	DevCon->VSSetShader(g_pVertexShader, nullptr, 0);
+//	DevCon->VSSetConstantBuffers(0, 1, &g_pCBNeverChanges);
+//	DevCon->VSSetConstantBuffers(1, 1, &g_pCBChangeOnResize);
+//	DevCon->VSSetConstantBuffers(2, 1, &g_pCBChangesEveryFrame);
+//	DevCon->PSSetShader(g_pPixelShader, nullptr, 0);
+//	DevCon->PSSetConstantBuffers(2, 1, &g_pCBChangesEveryFrame);
+//	DevCon->PSSetShaderResources(0, 1, &DrawTexture);
+//	DevCon->PSSetSamplers(0, 1, &g_pSamplerLinear);
+//	DevCon->DrawIndexed(36, 0, 0);
+//}
+CBLightingBuffer LightBuffer;
 void GameObject::Draw()
 {
 	g_View = XMMatrixLookAtLH(Eye, At, Up);
@@ -918,6 +999,7 @@ void GameObject::Draw()
 	XMMATRIX PositionMatrix;
 
 	CBChangesEveryFrame DrawBuffer;
+
 	g_vMeshColor.x = Red;
 	g_vMeshColor.y = Green;
 	g_vMeshColor.z = Blue;
@@ -937,30 +1019,29 @@ void GameObject::Draw()
 
 
 	// Setup our lighting parameters
-	XMFLOAT4 vLightDirs =
-	{
-		XMFLOAT4(0, 0, 0, 1.0f),
-	};
 
-	XMFLOAT4 vLightColors =
-	{
-		XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f)
-	};
-	DrawMatrice = ScaleMatrix *RotationMatrix * PositionMatrix;
+	LightBuffer.Ignore = XMMatrixIdentity();
+	LightBuffer.globalAmbinet = XMFLOAT3(1, 1, 1);
+	LightBuffer.lightColor = XMFLOAT3(1, 1, 1);
+	LightBuffer.lightPosition = XMFLOAT3(1, 1, 1);
+	LightBuffer.eyePosition = XMFLOAT3(1, 1, 1);
+	LightBuffer.Ke = XMFLOAT3(1, 1, 1);
+	LightBuffer.Ka = XMFLOAT3(1, 1, 1);
+	LightBuffer.Kd = XMFLOAT3(1, 1, 1);
+	LightBuffer.Ks = XMFLOAT3(1, 1, 1);
+	LightBuffer.shininess = 1;
+
+	DrawMatrice = ScaleMatrix * RotationMatrix * PositionMatrix;
 	DrawBuffer.mWorld = XMMatrixTranspose(DrawMatrice);
-	DrawBuffer.vMeshColor = g_vMeshColor;
-	DrawBuffer.vLightDir = vLightDirs;
-	DrawBuffer.vLightColor = vLightColors;
-
-
-
 	cbNeverChanges.mView = XMMatrixTranspose(g_View);
 	DevCon->UpdateSubresource(g_pCBChangesEveryFrame, 0, nullptr, &DrawBuffer, 0, 0);
 	DevCon->UpdateSubresource(g_pCBNeverChanges, 0, nullptr, &cbNeverChanges, 0, 0);
+	DevCon->UpdateSubresource(g_pCBLightBuffer, 0, nullptr, &LightBuffer, 0, 0);
 	DevCon->VSSetShader(g_pVertexShader, nullptr, 0);
 	DevCon->VSSetConstantBuffers(0, 1, &g_pCBNeverChanges);
 	DevCon->VSSetConstantBuffers(1, 1, &g_pCBChangeOnResize);
 	DevCon->VSSetConstantBuffers(2, 1, &g_pCBChangesEveryFrame);
+	DevCon->VSSetConstantBuffers(3, 1, &g_pCBLightBuffer);
 	DevCon->PSSetShader(g_pPixelShader, nullptr, 0);
 	DevCon->PSSetConstantBuffers(2, 1, &g_pCBChangesEveryFrame);
 	DevCon->PSSetShaderResources(0, 1, &DrawTexture);
@@ -1149,239 +1230,239 @@ void Level1()
 	{
 
 
-	BoundariesInit Bound;
-	Bound.Position = Vector3(0, 0, 0);
-	Bound.Rotation = Vector3(0, 0, 0);
-	Bound.Scale = Vector3(5, 0.5, 5);
-	Bound.colourR = 0;
-	Bound.colourG = 60;
-	Bound.colourB = 0;
-	Bound.targetchance = 0;
-	Bound.turretchance = 0;
-	Bound.leftWall = false;
-	Bound.rightWall = false;
-	Bound.frontwall = false;
-	Bound.backwall = false;
-	Bound.floor = false;
-	Bound.roof = false;
-	Bound.DrawTexture = BlankTexture;
-	Bound.TargetTexture = TargetTexture;
-	StartBlock.Setup(Bound);
+		BoundariesInit Bound;
+		Bound.Position = Vector3(0, 0, 0);
+		Bound.Rotation = Vector3(0, 0, 0);
+		Bound.Scale = Vector3(5, 0.5, 5);
+		Bound.colourR = 0;
+		Bound.colourG = 60;
+		Bound.colourB = 0;
+		Bound.targetchance = 0;
+		Bound.turretchance = 0;
+		Bound.leftWall = false;
+		Bound.rightWall = false;
+		Bound.frontwall = false;
+		Bound.backwall = false;
+		Bound.floor = false;
+		Bound.roof = false;
+		Bound.DrawTexture = BlankTexture;
+		Bound.TargetTexture = TargetTexture;
+		StartBlock.Setup(Bound);
 
 
 
-	playerInit player;
-	player.Position = Bound.Position;
-	player.Position.y += 5;
-	player.Scale = Vector3(0, 0, 0);
-	player.colourB = 1;
-	player.colourG = 1;
-	player.colourB = 1;
-	player.Health = 100;
-	player.Rotation = Vector3(0, 0, 0);
-	player.Shots = 0;
-	player.DrawTexture = BlankTexture;
-	objPlayer.Setup(player);
+		playerInit player;
+		player.Position = Bound.Position;
+		player.Position.y += 5;
+		player.Scale = Vector3(0, 0, 0);
+		player.colourB = 1;
+		player.colourG = 1;
+		player.colourB = 1;
+		player.Health = 100;
+		player.Rotation = Vector3(0, 0, 0);
+		player.Shots = 0;
+		player.DrawTexture = BlankTexture;
+		objPlayer.Setup(player);
 
 
-	corridorsInit Temp;
-	Temp.Position = Vector3(Bound.Position.x + 10, Bound.Position.y, Bound.Position.z);
-	Temp.Rotation = Vector3(0, 0, 0);
-	Temp.Scale = Vector3(1, 1, 1);
-	Temp.colourR = 1;
-	Temp.colourG = 1;
-	Temp.colourB = 1;
-	Temp.floorLength = 50;
-	Temp.DrawTexture = MarbleTexture;
-	Temp.TargetTexture = TargetTexture;
-	Temp.CorridorDirection = "Forward";
-	BoundariesInit FirstBlock;
-	FirstBlock.frontwall = true;
-	FirstBlock.backwall = true;
-	FirstBlock.floor = true;
-	FirstBlock.roof = true;
-	FirstBlock.leftWall = true;
-	FirstBlock.rightWall = true;
-	Temp.FirstBlock = FirstBlock;
-	BoundariesInit LastBlock;
-	LastBlock.frontwall = true;
-	LastBlock.backwall = true;
-	LastBlock.floor = true;
-	LastBlock.roof = true;
-	LastBlock.leftWall = true;
-	LastBlock.rightWall = true;
-	Temp.LastBlock = LastBlock;
-	objLevel1Corridor[0].Setup(Temp);
+		corridorsInit Temp;
+		Temp.Position = Vector3(Bound.Position.x + 10, Bound.Position.y, Bound.Position.z);
+		Temp.Rotation = Vector3(0, 0, 0);
+		Temp.Scale = Vector3(1, 1, 1);
+		Temp.colourR = 1;
+		Temp.colourG = 1;
+		Temp.colourB = 1;
+		Temp.floorLength = 50;
+		Temp.DrawTexture = MarbleTexture;
+		Temp.TargetTexture = TargetTexture;
+		Temp.CorridorDirection = "Forward";
+		BoundariesInit FirstBlock;
+		FirstBlock.frontwall = true;
+		FirstBlock.backwall = true;
+		FirstBlock.floor = true;
+		FirstBlock.roof = true;
+		FirstBlock.leftWall = true;
+		FirstBlock.rightWall = true;
+		Temp.FirstBlock = FirstBlock;
+		BoundariesInit LastBlock;
+		LastBlock.frontwall = true;
+		LastBlock.backwall = true;
+		LastBlock.floor = true;
+		LastBlock.roof = true;
+		LastBlock.leftWall = true;
+		LastBlock.rightWall = true;
+		Temp.LastBlock = LastBlock;
+		objLevel1Corridor[0].Setup(Temp);
 
 
-	Temp.Position = Vector3(Bound.Position.x - 10, Bound.Position.y, Bound.Position.z);
-	Temp.Rotation = Vector3(0, 0, 0);
-	Temp.Scale = Vector3(1, 1, 1);
-	Temp.colourR = 1;
-	Temp.colourG = 1;
-	Temp.colourB = 1;
-	Temp.floorLength = 50;
-	Temp.DrawTexture = BrickTexture;
-	Temp.TargetTexture = TargetTexture;
-	Temp.CorridorDirection = "Backward";
-    FirstBlock;
-	FirstBlock.frontwall = true;
-	FirstBlock.backwall = true;
-	FirstBlock.floor = true;
-	FirstBlock.roof = true;
-	FirstBlock.leftWall = true;
-	FirstBlock.rightWall = true;
-	Temp.FirstBlock = FirstBlock;
-    LastBlock;
-	LastBlock.frontwall = true;
-	LastBlock.backwall = true;
-	LastBlock.floor = true;
-	LastBlock.roof = true;
-	LastBlock.leftWall = true;
-	LastBlock.rightWall = true;
-	Temp.LastBlock = LastBlock;
-	objLevel1Corridor[1].Setup(Temp);
+		Temp.Position = Vector3(Bound.Position.x - 10, Bound.Position.y, Bound.Position.z);
+		Temp.Rotation = Vector3(0, 0, 0);
+		Temp.Scale = Vector3(1, 1, 1);
+		Temp.colourR = 1;
+		Temp.colourG = 1;
+		Temp.colourB = 1;
+		Temp.floorLength = 50;
+		Temp.DrawTexture = BrickTexture;
+		Temp.TargetTexture = TargetTexture;
+		Temp.CorridorDirection = "Backward";
+		FirstBlock;
+		FirstBlock.frontwall = true;
+		FirstBlock.backwall = true;
+		FirstBlock.floor = true;
+		FirstBlock.roof = true;
+		FirstBlock.leftWall = true;
+		FirstBlock.rightWall = true;
+		Temp.FirstBlock = FirstBlock;
+		LastBlock;
+		LastBlock.frontwall = true;
+		LastBlock.backwall = true;
+		LastBlock.floor = true;
+		LastBlock.roof = true;
+		LastBlock.leftWall = true;
+		LastBlock.rightWall = true;
+		Temp.LastBlock = LastBlock;
+		objLevel1Corridor[1].Setup(Temp);
 
 
-	Temp.Position = Vector3(Bound.Position.x, Bound.Position.y, Bound.Position.z-10);
-	Temp.Rotation = Vector3(0, 0, 0);
-	Temp.Scale = Vector3(1, 1, 1);
-	Temp.colourR = 1;
-	Temp.colourG = 1;
-	Temp.colourB = 1;
-	Temp.floorLength = 50;
-	Temp.DrawTexture = Wall2Texture;
-	Temp.TargetTexture = TargetTexture;
-	Temp.CorridorDirection = "Right";
-	FirstBlock;
-	FirstBlock.frontwall = true;
-	FirstBlock.backwall = true;
-	FirstBlock.floor = true;
-	FirstBlock.roof = true;
-	FirstBlock.leftWall = true;
-	FirstBlock.rightWall = true;
-	Temp.FirstBlock = FirstBlock;
-	LastBlock;
-	LastBlock.frontwall = true;
-	LastBlock.backwall = true;
-	LastBlock.floor = true;
-	LastBlock.roof = true;
-	LastBlock.leftWall = true;
-	LastBlock.rightWall = true;
-	Temp.LastBlock = LastBlock;
-	objLevel1Corridor[2].Setup(Temp);
+		Temp.Position = Vector3(Bound.Position.x, Bound.Position.y, Bound.Position.z - 10);
+		Temp.Rotation = Vector3(0, 0, 0);
+		Temp.Scale = Vector3(1, 1, 1);
+		Temp.colourR = 1;
+		Temp.colourG = 1;
+		Temp.colourB = 1;
+		Temp.floorLength = 50;
+		Temp.DrawTexture = Wall2Texture;
+		Temp.TargetTexture = TargetTexture;
+		Temp.CorridorDirection = "Right";
+		FirstBlock;
+		FirstBlock.frontwall = true;
+		FirstBlock.backwall = true;
+		FirstBlock.floor = true;
+		FirstBlock.roof = true;
+		FirstBlock.leftWall = true;
+		FirstBlock.rightWall = true;
+		Temp.FirstBlock = FirstBlock;
+		LastBlock;
+		LastBlock.frontwall = true;
+		LastBlock.backwall = true;
+		LastBlock.floor = true;
+		LastBlock.roof = true;
+		LastBlock.leftWall = true;
+		LastBlock.rightWall = true;
+		Temp.LastBlock = LastBlock;
+		objLevel1Corridor[2].Setup(Temp);
 
 
-	Temp.Position = Vector3(Bound.Position.x, Bound.Position.y, Bound.Position.z + 10);
-	Temp.Rotation = Vector3(0, 0, 0);
-	Temp.Scale = Vector3(1, 1, 1);
-	Temp.colourR = 1;
-	Temp.colourG = 1;
-	Temp.colourB = 1;
-	Temp.floorLength = 50;
-	Temp.DrawTexture = Wall1Texture;
-	Temp.TargetTexture = TargetTexture;
-	Temp.CorridorDirection = "Left";
-	FirstBlock;
-	FirstBlock.frontwall = true;
-	FirstBlock.backwall = true;
-	FirstBlock.floor = true;
-	FirstBlock.roof = true;
-	FirstBlock.leftWall = true;
-	FirstBlock.rightWall = true;
-	Temp.FirstBlock = FirstBlock;
-	LastBlock;
-	LastBlock.frontwall = true;
-	LastBlock.backwall = true;
-	LastBlock.floor = true;
-	LastBlock.roof = true;
-	LastBlock.leftWall = true;
-	LastBlock.rightWall = true;
-	Temp.LastBlock = LastBlock;
-	objLevel1Corridor[3].Setup(Temp);
-
-
-
-	Temp.Position = Vector3(Bound.Position.x, Bound.Position.y+10, Bound.Position.z);
-	Temp.Rotation = Vector3(0, 0, 0);
-	Temp.Scale = Vector3(1, 1, 1);
-	Temp.colourR = 1;
-	Temp.colourG = 1;
-	Temp.colourB = 1;
-	Temp.floorLength = 50;
-	Temp.DrawTexture = TexSeaFloor;
-	Temp.TargetTexture = TargetTexture;
-	Temp.CorridorDirection = "Up";
-	FirstBlock;
-	FirstBlock.frontwall = true;
-	FirstBlock.backwall = true;
-	FirstBlock.floor = true;
-	FirstBlock.roof = true;
-	FirstBlock.leftWall = true;
-	FirstBlock.rightWall = true;
-	Temp.FirstBlock = FirstBlock;
-	LastBlock;
-	LastBlock.frontwall = true;
-	LastBlock.backwall = true;
-	LastBlock.floor = true;
-	LastBlock.roof = true;
-	LastBlock.leftWall = true;
-	LastBlock.rightWall = true;
-	Temp.LastBlock = LastBlock;
-	objLevel1Corridor[4].Setup(Temp);
-
-	Temp.Position = Vector3(Bound.Position.x, Bound.Position.y - 10, Bound.Position.z);
-	Temp.Rotation = Vector3(0, 0, 0);
-	Temp.Scale = Vector3(1, 1, 1);
-	Temp.colourR = 1;
-	Temp.colourG = 1;
-	Temp.colourB = 1;
-	Temp.floorLength = 50;
-	Temp.DrawTexture = Wall3Texture;
-	Temp.TargetTexture = TargetTexture;
-	Temp.CorridorDirection = "Down";
-	FirstBlock;
-	FirstBlock.frontwall = true;
-	FirstBlock.backwall = true;
-	FirstBlock.floor = true;
-	FirstBlock.roof = true;
-	FirstBlock.leftWall = true;
-	FirstBlock.rightWall = true;
-	Temp.FirstBlock = FirstBlock;
-	LastBlock;
-	LastBlock.frontwall = true;
-	LastBlock.backwall = true;
-	LastBlock.floor = true;
-	LastBlock.roof = true;
-	LastBlock.leftWall = true;
-	LastBlock.rightWall = true;
-	Temp.LastBlock = LastBlock;
-	objLevel1Corridor[5].Setup(Temp);
-
-	setup = false;
+		Temp.Position = Vector3(Bound.Position.x, Bound.Position.y, Bound.Position.z + 10);
+		Temp.Rotation = Vector3(0, 0, 0);
+		Temp.Scale = Vector3(1, 1, 1);
+		Temp.colourR = 1;
+		Temp.colourG = 1;
+		Temp.colourB = 1;
+		Temp.floorLength = 50;
+		Temp.DrawTexture = Wall1Texture;
+		Temp.TargetTexture = TargetTexture;
+		Temp.CorridorDirection = "Left";
+		FirstBlock;
+		FirstBlock.frontwall = true;
+		FirstBlock.backwall = true;
+		FirstBlock.floor = true;
+		FirstBlock.roof = true;
+		FirstBlock.leftWall = true;
+		FirstBlock.rightWall = true;
+		Temp.FirstBlock = FirstBlock;
+		LastBlock;
+		LastBlock.frontwall = true;
+		LastBlock.backwall = true;
+		LastBlock.floor = true;
+		LastBlock.roof = true;
+		LastBlock.leftWall = true;
+		LastBlock.rightWall = true;
+		Temp.LastBlock = LastBlock;
+		objLevel1Corridor[3].Setup(Temp);
 
 
 
+		Temp.Position = Vector3(Bound.Position.x, Bound.Position.y + 10, Bound.Position.z);
+		Temp.Rotation = Vector3(0, 0, 0);
+		Temp.Scale = Vector3(1, 1, 1);
+		Temp.colourR = 1;
+		Temp.colourG = 1;
+		Temp.colourB = 1;
+		Temp.floorLength = 50;
+		Temp.DrawTexture = TexSeaFloor;
+		Temp.TargetTexture = TargetTexture;
+		Temp.CorridorDirection = "Up";
+		FirstBlock;
+		FirstBlock.frontwall = true;
+		FirstBlock.backwall = true;
+		FirstBlock.floor = true;
+		FirstBlock.roof = true;
+		FirstBlock.leftWall = true;
+		FirstBlock.rightWall = true;
+		Temp.FirstBlock = FirstBlock;
+		LastBlock;
+		LastBlock.frontwall = true;
+		LastBlock.backwall = true;
+		LastBlock.floor = true;
+		LastBlock.roof = true;
+		LastBlock.leftWall = true;
+		LastBlock.rightWall = true;
+		Temp.LastBlock = LastBlock;
+		objLevel1Corridor[4].Setup(Temp);
 
-	GameObjectInit TempDebug;
-	TempDebug.position = Vector3(Bound.Position.x+75.0f, Bound.Position.y + 75.0f, Bound.Position.z + 75.0f);
-	TempDebug.scale = Vector3(2, 2, 2);
-	TempDebug.DrawTexture = MarbleTexture;
-	TempDebug.ColourR = 0;
-	TempDebug.ColourG = 0;
-	TempDebug.ColourB = 0;
-	CollisonTester.Setup(TempDebug);
-	
+		Temp.Position = Vector3(Bound.Position.x, Bound.Position.y - 10, Bound.Position.z);
+		Temp.Rotation = Vector3(0, 0, 0);
+		Temp.Scale = Vector3(1, 1, 1);
+		Temp.colourR = 1;
+		Temp.colourG = 1;
+		Temp.colourB = 1;
+		Temp.floorLength = 50;
+		Temp.DrawTexture = Wall3Texture;
+		Temp.TargetTexture = TargetTexture;
+		Temp.CorridorDirection = "Down";
+		FirstBlock;
+		FirstBlock.frontwall = true;
+		FirstBlock.backwall = true;
+		FirstBlock.floor = true;
+		FirstBlock.roof = true;
+		FirstBlock.leftWall = true;
+		FirstBlock.rightWall = true;
+		Temp.FirstBlock = FirstBlock;
+		LastBlock;
+		LastBlock.frontwall = true;
+		LastBlock.backwall = true;
+		LastBlock.floor = true;
+		LastBlock.roof = true;
+		LastBlock.leftWall = true;
+		LastBlock.rightWall = true;
+		Temp.LastBlock = LastBlock;
+		objLevel1Corridor[5].Setup(Temp);
+
+		setup = false;
+
+
+
+
+		GameObjectInit TempDebug;
+		TempDebug.position = Vector3(Bound.Position.x + 75.0f, Bound.Position.y + 75.0f, Bound.Position.z + 75.0f);
+		TempDebug.scale = Vector3(2, 2, 2);
+		TempDebug.DrawTexture = MarbleTexture;
+		TempDebug.ColourR = 0;
+		TempDebug.ColourG = 0;
+		TempDebug.ColourB = 0;
+		CollisonTester.Setup(TempDebug);
+
 	}
 
 	for (int x = 0; x < 6; x++)
 	{
 		for (int i = 0; i < 50; i++)
 		{
-		for (int j = 0; j < objLevel1Corridor[x].FloorLength; j++)
-		{
+			for (int j = 0; j < objLevel1Corridor[x].FloorLength; j++)
+			{
 
-		
+
 				if (objPlayer.objGunLeft.objbulletlist[i].Alive == true)
 				{
 					objLevel1Corridor[x].objTarget.Update();
@@ -1391,7 +1472,7 @@ void Level1()
 						objLevel1Corridor[x].objFloors[j].Health = 0;
 					}
 				}
-			
+
 				if (objPlayer.objGunRight.objbulletlist[i].Alive == true)
 				{
 					if (CollisionBox::Intersects(objPlayer.objGunRight.objbulletlist[i], objLevel1Corridor[x].objTarget))
@@ -1403,16 +1484,6 @@ void Level1()
 			}
 		}
 	}
-
-
-
-
-	
-
-
-
-
-
 	objPlayer.Update();
 	//Camera
 	Camera.Position.x = -objPlayer.ForwardDirection.x;
@@ -1420,9 +1491,9 @@ void Level1()
 	Camera.Position.z = -objPlayer.ForwardDirection.z;
 	Camera.Position = Camera.MultiplyVector(Camera.Position, 1.1f);
 	Camera.Position = Camera.VectorAdd(Camera.Position, objPlayer.Position);
-	 Eye = XMVectorSet(Camera.Position.x, Camera.Position.y, Camera.Position.z, 0.0f);
-	 At = XMVectorSet(objPlayer.Position.x, objPlayer.Position.y, objPlayer.Position.z, 0.0f);
-	 Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	Eye = XMVectorSet(Camera.Position.x, Camera.Position.y, Camera.Position.z, 0.0f);
+	At = XMVectorSet(objPlayer.Position.x, objPlayer.Position.y, objPlayer.Position.z, 0.0f);
+	Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 	g_View = XMMatrixLookAtLH(Eye, At, Up);
 	cbNeverChanges.mView = XMMatrixTranspose(g_View);
 	//Corridors draw them selves and require to be updated after 
@@ -1451,16 +1522,315 @@ void Level5()
 {
 
 }
+
+void Lighting()
+{
+	if (KeycodeW == true)
+	{
+		objPlayer.W = true;
+	}
+	else if (KeycodeW == false)
+	{
+		objPlayer.W = false;
+	}
+
+
+	if (KeycodeA == true)
+	{
+		objPlayer.A = true;
+
+	}
+	else if (KeycodeA == false)
+	{
+		objPlayer.A = false;
+	}
+
+	if (KeycodeS == true)
+	{
+		objPlayer.S = true;
+	}
+	else if (KeycodeS == false)
+	{
+		objPlayer.S = false;
+	}
+
+
+	if (KeycodeD == true)
+	{
+		objPlayer.D = true;
+	}
+	else if (KeycodeD == false)
+	{
+		objPlayer.D = false;
+	}
+
+
+	if (KeycodeUp == true)
+	{
+		objPlayer.UP = true;
+	}
+	else if (KeycodeUp == false)
+	{
+		objPlayer.UP = false;
+	}
+
+
+	if (KeycodeRight == true)
+
+	{
+		objPlayer.RIGHT = true;
+	}
+	else if (KeycodeRight == false)
+	{
+		objPlayer.RIGHT = false;
+	}
+
+
+	if (KeycodeDown == true)
+
+	{
+		objPlayer.DOWN = true;
+	}
+	else if (KeycodeDown == false)
+	{
+		objPlayer.DOWN = false;
+	}
+
+
+	if (KeycodeLeft == true)
+
+	{
+		objPlayer.LEFT = true;
+	}
+	else if (KeycodeLeft == false)
+	{
+		objPlayer.LEFT = false;
+	}
+
+
+
+	if (KeycodePlus == true)
+	{
+		objPlayer.PLUS = true;
+	}
+	else
+	{
+		objPlayer.PLUS = false;
+	}
+
+
+
+	if (KeycodeMinus == true)
+	{
+		objPlayer.MINUS = true;
+	}
+	else
+	{
+		objPlayer.MINUS = false;
+	}
+
+
+	if (KeycodeF == true)
+	{
+		objPlayer.F = true;
+	}
+	else
+	{
+		objPlayer.F = false;
+	}
+
+
+	if (KeycodeQ == true)
+	{
+		objPlayer.Q = true;
+	}
+	else if (KeycodeQ == false)
+	{
+		objPlayer.Q = false;
+	}
+
+
+	if (KeycodeE == true)
+	{
+		objPlayer.E = true;
+	}
+	else if (KeycodeE == false)
+	{
+		objPlayer.E = false;
+	}
+
+	if (KeycodeSpace == true)
+	{
+		objPlayer.SPACE = true;
+	}
+	else if (KeycodeSpace == false)
+	{
+		objPlayer.SPACE = false;
+	}
+
+
+
+	if (KeycodeShift == true)
+	{
+		objPlayer.SHIFT = true;
+	}
+	else if (KeycodeShift == false) {
+		objPlayer.SHIFT = false;
+	}
+
+
+
+	if (KeycodeLControl == true)
+	{
+		objPlayer.CONTROL = true;
+	}
+	else if (KeycodeLControl == false) {
+		objPlayer.CONTROL = false;
+	}
+
+
+	if (KeycodeX == true)
+	{
+		objPlayer.X = true;
+	}
+	else if (KeycodeX == false)
+	{
+		objPlayer.X = false;
+	}
+
+
+
+	if (setup == true)
+	{
+
+
+		BoundariesInit Bound;
+		Bound.Position = Vector3(0, 0, 0);
+		Bound.Rotation = Vector3(0, 0, 0);
+		Bound.Scale = Vector3(5, 0.5, 5);
+		Bound.colourR = 0;
+		Bound.colourG = 60;
+		Bound.colourB = 0;
+		Bound.targetchance = 0;
+		Bound.turretchance = 0;
+		Bound.leftWall = false;
+		Bound.rightWall = false;
+		Bound.frontwall = false;
+		Bound.backwall = false;
+		Bound.floor = false;
+		Bound.roof = false;
+		Bound.DrawTexture = BlankTexture;
+		Bound.TargetTexture = TargetTexture;
+		StartBlock.Setup(Bound);
+
+
+
+		playerInit player;
+		player.Position = Bound.Position;
+		player.Position.z -= 5;
+		player.Scale = Vector3(0, 0, 0);
+		player.colourB = 1;
+		player.colourG = 1;
+		player.colourB = 1;
+		player.Health = 100;
+		player.Rotation = Vector3(0, 0, 0);
+		player.Shots = 0;
+		player.DrawTexture = BlankTexture;
+		objPlayer.Setup(player);
+
+
+		corridorsInit Temp;
+		Temp.Position = Vector3(Bound.Position.x + 10, Bound.Position.y, Bound.Position.z);
+		Temp.Rotation = Vector3(0, 0, 0);
+		Temp.Scale = Vector3(1, 1, 1);
+		Temp.colourR = 1;
+		Temp.colourG = 1;
+		Temp.colourB = 1;
+		Temp.floorLength = 50;
+		Temp.DrawTexture = MarbleTexture;
+		Temp.TargetTexture = TargetTexture;
+		Temp.CorridorDirection = "Forward";
+		BoundariesInit FirstBlock;
+		FirstBlock.frontwall = true;
+		FirstBlock.backwall = true;
+		FirstBlock.floor = true;
+		FirstBlock.roof = true;
+		FirstBlock.leftWall = true;
+		FirstBlock.rightWall = true;
+		Temp.FirstBlock = FirstBlock;
+		BoundariesInit LastBlock;
+		LastBlock.frontwall = true;
+		LastBlock.backwall = true;
+		LastBlock.floor = true;
+		LastBlock.roof = true;
+		LastBlock.leftWall = true;
+		LastBlock.rightWall = true;
+		Temp.LastBlock = LastBlock;
+		objLevel1Corridor[0].Setup(Temp);
+
+
+		Temp.Position = Vector3(Bound.Position.x - 10, Bound.Position.y, Bound.Position.z);
+		Temp.Rotation = Vector3(0, 0, 0);
+		Temp.Scale = Vector3(1, 1, 1);
+		Temp.colourR = 1;
+		Temp.colourG = 1;
+		Temp.colourB = 1;
+		Temp.floorLength = 50;
+		Temp.DrawTexture = BrickTexture;
+		Temp.TargetTexture = TargetTexture;
+		Temp.CorridorDirection = "Backward";
+		FirstBlock;
+		FirstBlock.frontwall = true;
+		FirstBlock.backwall = true;
+		FirstBlock.floor = true;
+		FirstBlock.roof = true;
+		FirstBlock.leftWall = true;
+		FirstBlock.rightWall = true;
+		Temp.FirstBlock = FirstBlock;
+		LastBlock;
+		LastBlock.frontwall = true;
+		LastBlock.backwall = true;
+		LastBlock.floor = true;
+		LastBlock.roof = true;
+		LastBlock.leftWall = true;
+		LastBlock.rightWall = true;
+		Temp.LastBlock = LastBlock;
+		objLevel1Corridor[1].Setup(Temp);
+		setup = false;
+	}
+
+	objPlayer.Update();
+	//Camera
+	Camera.Position.x = -objPlayer.ForwardDirection.x;
+	Camera.Position.y = -objPlayer.ForwardDirection.y;
+	Camera.Position.z = -objPlayer.ForwardDirection.z;
+	Camera.Position = Camera.MultiplyVector(Camera.Position, 1.1f);
+	Camera.Position = Camera.VectorAdd(Camera.Position, objPlayer.Position);
+	Eye = XMVectorSet(Camera.Position.x, Camera.Position.y, Camera.Position.z, 0.0f);
+	At = XMVectorSet(objPlayer.Position.x, objPlayer.Position.y, objPlayer.Position.z, 0.0f);
+	Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	g_View = XMMatrixLookAtLH(Eye, At, Up);
+	cbNeverChanges.mView = XMMatrixTranspose(g_View);
+	corridorsInit CORRIDOR;
+	GameObject Test;
+	Test.Scale = Vector3(10, 10, 10);
+	Test.DrawTexture = TargetTexture;
+	Test.Update();
+	objLevel1Corridor[0].Update();
+}
+
 double Timer;
-double DeltaTime = 0;	
+double DeltaTime = 0;
 void Render()
 {
+	//Create Stop Watch
 	Stopwatch FrameTime;
 	FrameTime.Start();
 	UINT stride = sizeof(SimpleVertex);
 	UINT offset = 0;
 	level1 = false;
 	Debug = true;
+	//Create ViewPort
 	D3D11_VIEWPORT vp;
 	vp.Width = Width;
 	vp.Height = Height;
@@ -1468,81 +1838,77 @@ void Render()
 	vp.MaxDepth = 1.0f;
 	vp.TopLeftX = 0;
 	vp.TopLeftY = 0;
-
+	//Reseting States//
+	//Clear Screen
 	DevCon->ClearRenderTargetView(RenderTargetView, Colors::MidnightBlue);
-	DevCon->ClearDepthStencilView(depthStencelView, D3D11_CLEAR_STENCIL ||D3D11_CLEAR_DEPTH , 1.0f, 0);
+	DevCon->ClearDepthStencilView(depthStencelView, D3D11_CLEAR_STENCIL || D3D11_CLEAR_DEPTH, 1.0f, 0);
+	//Setting Layout
 	DevCon->IASetInputLayout(g_pVertexLayout);
+	//Set Primite Topology
 	DevCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	//Set Raster
 	DevCon->RSSetState(rasterizerState);
-	DevCon->OMSetDepthStencilState(depthStencilState,0);
+	//Set Stencil
+	DevCon->OMSetDepthStencilState(depthStencilState, 0);
+	//Set Render Target
 	DevCon->OMSetRenderTargets(1, &RenderTargetView, depthStencelView);
+	//Set View Port
 	DevCon->RSSetViewports(1, &vp);
+	//Set Vertex Buffer
 	DevCon->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
+	//Set Index Buffer
 	DevCon->IASetIndexBuffer(g_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
-	g_World = XMMatrixIdentity();
+	//Set PRojection Matrix
 	g_Projection = XMMatrixPerspectiveFovLH(XM_PIDIV4, Width / Height, 0.01f, 10000.0f);
 	CBChangeOnResize cbChangesOnResize;
 	cbChangesOnResize.mProjection = XMMatrixTranspose(g_Projection);
 	DevCon->UpdateSubresource(g_pCBChangeOnResize, 0, nullptr, &cbChangesOnResize, 0, 0);
 
-	//Clear Render Target 
 
-	static float t = 0.0f;
-	if (g_driverType == D3D_DRIVER_TYPE_REFERENCE)
+	//Entering debug levels
+	if (Debug == true)
 	{
-		t += (float)XM_PI * 0.0125f;
-	}
-	else
-	{
-		static ULONGLONG timeStart = 0;
-		ULONGLONG timeCur = GetTickCount64();
-		if (timeStart == 0)
-			timeStart = timeCur;
-		t = (timeCur - timeStart) / 1000.0f;
-	}
-
-	
-
-	if (level1 == true)
-	{
-		//Level1();
+		Lighting();
 	}
 
 
-CurrentFrameRate += 1;
+	//Adds 1 to frame rate 
+	CurrentFrameRate += 1;
 
-Timer = Frametimer.ElapsedSeconds();
+	Timer = Frametimer.ElapsedSeconds();
 
-if (Timer >= 1)
-{
-	FPS = CurrentFrameRate;
-	CurrentFrameRate = 0;
-	Frametimer.Restart();
-	Timer = 0;
-}
+	if (Timer >= 1)
+	{
+		FPS = CurrentFrameRate;
+		CurrentFrameRate = 0;
+		Frametimer.Restart();
+		Timer = 0;
+	}
+	//Combines Frame Rate to text
+	wstring TFPS = std::to_wstring(FPS);
+	wstring TText = L"Frame Rate = ";
 
-wstring TFPS = std::to_wstring(FPS);
-wstring TText = L"Frame Rate = ";
+	TText += TFPS;
+	const wchar_t *Text = TText.c_str();
+	//Combines Frame Time To TExt
+	wstring DET = std::to_wstring(DeltaTime);
+	wstring DText = L"Frame Time = ";
 
-TText += TFPS;
-const wchar_t *Text = TText.c_str();
+	DText += DET;
+	const wchar_t *Text2 = DText.c_str();
 
-wstring DET = std::to_wstring(DeltaTime);
-wstring DText = L"Frame Time = ";
+	//Text
+	spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
+	spriteFont = std::make_unique<DirectX::SpriteFont>(Device, L"Text/comic_sans_ms_16.spritefont"); //Setting Font
+	spriteBatch->Begin();
+	spriteFont->DrawString(spriteBatch.get(), Text, XMFLOAT2(0, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Rate
+	spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Time
+	spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Time
 
-DText += DET;
-const wchar_t *Text2 = DText.c_str();
-
-//Text
-spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
-spriteFont = std::make_unique<DirectX::SpriteFont>(Device, L"Text/comic_sans_ms_16.spritefont");
-
-spriteBatch->Begin();
-spriteFont->DrawString(spriteBatch.get(), Text, XMFLOAT2(0, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-spriteBatch->End();
+	spriteBatch->End();
 
 
-swapChain->Present(0, 0);
-DeltaTime = FrameTime.ElapsedMilliseconds();
+
+	swapChain->Present(0, 0); //Swaps the chian
+	DeltaTime = FrameTime.ElapsedMilliseconds(); //Sets Delta Time as frame time stopwatch value 
 }
