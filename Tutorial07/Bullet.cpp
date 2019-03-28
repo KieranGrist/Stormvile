@@ -7,6 +7,8 @@ Bullet::Bullet()
 }
 void Bullet::Setup(GameObjectInit Init)
 {
+	DeltaTime = 0;
+	TimeOutDestructor = 0;
 	Position = Init.position;
 	Rotation = Init.rotation;
 	Scale = Init.scale;
@@ -17,7 +19,7 @@ void Bullet::Setup(GameObjectInit Init)
 }
 void Bullet::Setup(bulletInit Init)
 {
-
+	DeltaTime = 0;
 	TimeOutDestructor = 0;
 	Scale =  Vector3(0.1,0.1, 0.1);
 	DrawTexture = Init.DrawTexture;
@@ -39,14 +41,15 @@ void Bullet::Setup(bulletInit Init)
 }
 void Bullet::Update()
 {
+	TimeOutDestructor += DeltaTime;
 	MinExtent = VectorSub(Position, Vector3(1, 1, 1));
 	MaxExtent = VectorAdd(Position, Vector3(1, 1, 1));
 	Mass = 1.1f;
-	Acceleration = DivideVector(Force, Mass);
-	Velocity = VectorAdd(Velocity, MultiplyVector(Acceleration, 0.01f));
-	Position = VectorAdd(Position, MultiplyVector(Velocity, 0.01f));
-	TimeOutDestructor += 0.05;
-	Force = Vector3(0, 0, 0);
+	Acceleration =Force/ Mass;
+	Velocity += Acceleration*DeltaTime;
+	Position += Velocity*DeltaTime;
+
+	//Force = Vector3(0, 0, 0);
 	Draw();
 }
 

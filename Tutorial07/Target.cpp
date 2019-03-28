@@ -38,7 +38,9 @@ void Target::Update()
 	}
 	else
 	{
-		Position.x += 5000.0f;
+		Position.x += 500000.0f;
+		Position.y += 500000.0f;
+		Position.z += 500000.0f;
 	}
 }
 

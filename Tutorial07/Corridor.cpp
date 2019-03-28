@@ -21,7 +21,7 @@ void Corridor::Setup(corridorsInit Init)
 	Temp.ColourR = Init.colourR;
 	Temp.DrawTexture = Init.DrawTexture;
     GameObject::Setup(Temp);
-	int RandomNumber = 70;
+	int RandomNumber = 50;
 	int RandomNumber2 = rand() % 50;;
 	if (Init.floorLength > 50)
 	{
@@ -50,7 +50,8 @@ void Corridor::Setup(corridorsInit Init)
 				corridortemp.backwall = Init.FirstBlock.backwall;
 				corridortemp.floor = Init.FirstBlock.floor;
 				corridortemp.roof = Init.FirstBlock.roof;
-				corridortemp.DrawTexture = Init.DrawTexture;  corridortemp.TargetTexture = Init.TargetTexture;
+				corridortemp.DrawTexture = Init.DrawTexture; 
+				corridortemp.TargetTexture = Init.TargetTexture;
 				corridortemp.TargetTexture = Init.TargetTexture;
 				objFloors[i].Setup(corridortemp);
 			}

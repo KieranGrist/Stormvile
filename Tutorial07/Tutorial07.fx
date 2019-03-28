@@ -22,13 +22,21 @@ cbuffer cbLightingBuffer : register(b3)
 {
 	matrix Ignore;
 	float3 globalAmbient;
+	float E = 0;
 	float3 lightColor;
+	float E1 = 1;
 	float3 lightPosition;
+	float E2 = 1;
 	float3 eyePosition;
+	float E3 = 1;
 	float3 Ke;
+	float E4 = 1;
 	float3 Ka;
+	float E5 = 1;
 	float3 Kd;
+	float E6 = 1;
 	float3 Ks;
+	float E7 = 1;
 	float shininess;
 };
 
@@ -40,19 +48,6 @@ struct VS_INPUT
 	float3 Norm : NORMAL;
 	float4 color : COLOR;
 };
-struct LIGHT_INPUT
-{
-	VS_INPUT Input;
-	float3 globalAmbient;
-	float3 lightColor;
-	float3 lightPosition;
-	float3 eyePosition;
-	float3 Ke;
-	float3 Ka;
-	float3 Kd;
-	float3 Ks;
-	float shininess;
-};
 struct PS_INPUT
 {
 	float4 Pos : SV_POSITION;
@@ -60,61 +55,60 @@ struct PS_INPUT
 	float3 Norm : NORMAL;
 	float4 color : COLOR;
 };
-float4 C5E1v_basicLight(LIGHT_INPUT input)
+float4 C5E1v_basicLight(VS_INPUT input)
 {
 
-	float4 ret;
-	return ret;
-
-
-	//float3 P = input.Input.Pos.xyz;
-
-	//float3 N = input.Input.Norm;
 
 
 
-	//// Compute the emissive term
+	float3 P = input.Pos.xyz;
 
-	//float3 emissive = input.Ke;
-
-
-
-	////// Compute the ambient term
-
-	////float3 ambient = Ka * globalAmbient;
+	float3 N = input.Norm;
 
 
 
-	////// Compute the diffuse term
+	 //Compute the emissive term
 
-	////float3 L = normalize(lightPosition - P);
-
-	////float diffuseLight = max(dot(N, L), 0);
-
-	////float3 diffuse = Kd * lightColor * diffuseLight;
+	float3 emissive = Ke.xyz;
 
 
 
-	////// Compute the specular term
+	// Compute the ambient term
 
-	////float3 V = normalize(eyePosition - P);
-
-	////float3 H = normalize(L + V);
-
-	////float specularLight = pow(max(dot(N, H), 0),
-
-	////	shininess);
-
-	////if (diffuseLight <= 0) specularLight = 0;
-
-	////float3 specular = Ks * lightColor * specularLight;
+	float3 ambient = Ka * globalAmbient;
 
 
 
-	////input.color.xyz = emissive;//+ ambient + diffuse + specular;
+	// Compute the diffuse term
 
-	//input.color.w = 1;
-	//return input.color;
+	float3 L = normalize(lightPosition - P);
+
+	float diffuseLight = max(dot(N, L), 0);
+
+	float3 diffuse = Kd * lightColor * diffuseLight;
+
+
+
+	// Compute the specular term
+
+	float3 V = normalize(eyePosition - P);
+
+	float3 H = normalize(L + V);
+
+	float specularLight = pow(max(dot(N, H), 0),
+
+		shininess);
+
+	if (diffuseLight <= 0) specularLight = 0;
+
+	float3 specular = Ks * lightColor * specularLight;
+
+
+	float4 color;
+	color.xyz = emissive + ambient + diffuse + specular;
+
+	color.w = 1;
+	return color;
 };
 
 //--------------------------------------------------------------------------------------
@@ -128,7 +122,7 @@ PS_INPUT VS(VS_INPUT input)
 	output.Pos = mul(output.Pos, Projection);
 	output.Tex = input.Tex;
 	output.Norm = mul(float4(input.Norm, 1), World).xyz;
-	output.color.xyz = Ke.xyz;
+	output.color = C5E1v_basicLight(input);
 	return output;
 };
 
@@ -143,8 +137,8 @@ PS_INPUT VS(VS_INPUT input)
 float4 PS(PS_INPUT input) : SV_Target
 {
 	float4  finalColor;
-finalColor.xyz = input.color;
+finalColor.xyz = input.color.xyz;
 finalColor.a = 1;
-return finalColor;
+return txDiffuse.Sample(samLinear, input.Tex) * finalColor;
 };
 

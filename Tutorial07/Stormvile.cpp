@@ -26,16 +26,19 @@ https://github.com/Pindrought/DirectX-11-Engine-VS2017/blob/Tutorial_18/DirectX%
 float Height, Width;
 GameObject Camera;
 GameObject FocusObject;
-Target CollisonTester;
 Boundaries StartBlock, EndBlock;
 Player objPlayer;
 Corridor objLevel1Corridor[6];
 bool level1 = true, Debug = false, setup = true;
 int CurrentFrameRate, FPS;
+float LevelTime;
+float TotalTargets;
+float TargetsLeft;
+float TargetsKilled;
+float PercentageKilled;
 XMVECTOR Eye, At, Up;
 Stopwatch Frametimer;
-GameObject OBJ;
-GameObject OBJ2;
+Stopwatch Leveltimer;
 std::unique_ptr<DirectX::SpriteBatch> spriteBatch;
 std::unique_ptr<DirectX::SpriteFont> spriteFont;
 //--------------------------------------------------------------------------------------
@@ -69,15 +72,23 @@ struct CBChangesEveryFrame
 struct CBLightingBuffer
 {
 	XMMATRIX Ignore;
-	XMFLOAT3 globalAmbinet;
+	XMFLOAT3 globalAmbient;
+	float E = 1;
 	XMFLOAT3 lightColor;
+	float E1 = 1;
 	XMFLOAT3 lightPosition;
+	float E2 = 1;
 	XMFLOAT3 eyePosition;
-	XMFLOAT3 Ke;
-	XMFLOAT3 Ka;
-	XMFLOAT3 Kd;
-	XMFLOAT3 Ks;
-	float  shininess;
+	float E3 = 1;
+	XMFLOAT3 Ke;  //Emissive reflectance
+	float E4 = 1;
+	XMFLOAT3 Ka;  // Ambient reflectance
+	float E5 = 1;
+	XMFLOAT3 Kd; //Diffuse reflectance
+	float E6 = 1;
+	XMFLOAT3 Ks; //Specular reflectance
+	float E7 = 1;
+	float shininess;
 };
 D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
 D3D11_TEXTURE2D_DESC descDepth = {};
@@ -106,23 +117,6 @@ ID3D11Buffer*                       g_pCBChangeOnResize = nullptr;
 ID3D11Buffer*                       g_pCBChangesEveryFrame = nullptr;
 ID3D11Buffer*    g_pCBLightBuffer = nullptr;
 
-ID3D11ShaderResourceView* TexSeaFloor;
-ID3D11ShaderResourceView* TexContainersNeeded;
-ID3D11ShaderResourceView* TexExit;
-ID3D11ShaderResourceView* TexOptions;
-ID3D11ShaderResourceView* TexStart;
-ID3D11ShaderResourceView* TexLevel;
-ID3D11ShaderResourceView* TexTarPosThree;
-ID3D11ShaderResourceView* TexTarPosFive;
-ID3D11ShaderResourceView* TexTarPosFour;
-ID3D11ShaderResourceView* TexTarPosOne;
-ID3D11ShaderResourceView* TexTarPosTwo;
-ID3D11ShaderResourceView* TexOne;
-ID3D11ShaderResourceView* TexTwo;
-ID3D11ShaderResourceView* TexThree;
-ID3D11ShaderResourceView* TexFour;
-ID3D11ShaderResourceView* TexFive;
-ID3D11ShaderResourceView* MenuText;
 ID3D11ShaderResourceView* BlankTexture;
 ID3D11ShaderResourceView* BrickTexture;
 ID3D11ShaderResourceView* MarbleTexture;
@@ -654,23 +648,6 @@ HRESULT InitDevice()
 		return hr;
 
 	// Load the Textures
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/seafloor.dds", nullptr, &TexSeaFloor);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/MenuTex.dds", nullptr, &MenuText);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/ContainersNeeded.dds", nullptr, &TexContainersNeeded);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Exit.dds", nullptr, &TexExit);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Five.dds", nullptr, &TexFive);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Four.dds", nullptr, &TexFour);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Level.dds", nullptr, &TexLevel);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/one.dds", nullptr, &TexOne);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Options.dds", nullptr, &TexOptions);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Start.dds", nullptr, &TexStart);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Three.dds", nullptr, &TexThree);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/TPFIVE.dds", nullptr, &TexTarPosFive);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/TPFOUR.dds", nullptr, &TexTarPosFour);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/TPONE.dds", nullptr, &TexTarPosOne);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/TPTHERE.dds", nullptr, &TexTarPosThree);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/TPTWO.dds", nullptr, &TexTarPosTwo);
-	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/two.dds", nullptr, &TexTwo);
 	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/BT.dds", nullptr, &BlankTexture);
 	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Brick.dds", nullptr, &BrickTexture);
 	hr = CreateDDSTextureFromFile(Device, L"Textures/DDS/Marble.dds", nullptr, &MarbleTexture);
@@ -711,22 +688,6 @@ HRESULT InitDevice()
 void CleanupDevice()
 {
 	if (DevCon) DevCon->ClearState();
-	if (TexContainersNeeded) TexContainersNeeded->Release();
-	if (TexExit) TexExit->Release();
-	if (TexFive) TexFive->Release();
-	if (TexFour) TexFour->Release();
-	if (TexLevel) TexLevel->Release();
-	if (TexOne) TexOne->Release();
-	if (TexOptions) TexOptions->Release();
-	if (TexStart) TexStart->Release();
-	if (TexThree) TexThree->Release();
-	if (TexTarPosFive) TexTarPosFive->Release();
-	if (TexTarPosFour) TexTarPosFour->Release();
-	if (TexTarPosOne) TexTarPosOne->Release();
-	if (TexTarPosThree) TexTarPosThree->Release();
-	if (TexTarPosTwo) TexTarPosTwo->Release();
-	if (TexSeaFloor) TexSeaFloor->Release();
-	if (TexTwo) TexTwo->Release();
 	if (BlankTexture) BlankTexture->Release();
 	if (BrickTexture) BrickTexture->Release();
 	if (MarbleTexture) MarbleTexture->Release();
@@ -735,7 +696,6 @@ void CleanupDevice()
 	if (Wall3Texture) Wall3Texture->Release();
 	if (TargetTexture) TargetTexture->Release();
 	if (g_pSamplerLinear) g_pSamplerLinear->Release();
-	if (MenuText) MenuText->Release();
 	if (g_pCBNeverChanges) g_pCBNeverChanges->Release();
 	if (g_pCBChangeOnResize) g_pCBChangeOnResize->Release();
 	if (g_pCBChangesEveryFrame) g_pCBChangesEveryFrame->Release();
@@ -1021,10 +981,13 @@ void GameObject::Draw()
 	// Setup our lighting parameters
 
 	LightBuffer.Ignore = XMMatrixIdentity();
-	LightBuffer.globalAmbinet = XMFLOAT3(1, 1, 1);
-	LightBuffer.lightColor = XMFLOAT3(1, 1, 1);
-	LightBuffer.lightPosition = XMFLOAT3(1, 1, 1);
-	LightBuffer.eyePosition = XMFLOAT3(1, 1, 1);
+	LightBuffer.globalAmbient = XMFLOAT3(0, 0, 0);
+	LightBuffer.lightColor = XMFLOAT3(0, 1, 0);
+	LightBuffer.lightPosition = objPlayer.Position;
+	 X = XMVectorGetX(Eye);
+	 Y = XMVectorGetY(Eye);
+	 Z = XMVectorGetZ(Eye);
+	LightBuffer.eyePosition = XMFLOAT3(X,Y,Z);
 	LightBuffer.Ke = XMFLOAT3(1, 1, 1);
 	LightBuffer.Ka = XMFLOAT3(1, 1, 1);
 	LightBuffer.Kd = XMFLOAT3(1, 1, 1);
@@ -1051,6 +1014,7 @@ void GameObject::Draw()
 
 void Level1()
 {
+	//Keyboard checks
 	if (KeycodeW == true)
 	{
 		objPlayer.W = true;
@@ -1225,34 +1189,34 @@ void Level1()
 	}
 
 
-
+	//Setup
 	if (setup == true)
 	{
 
+		BoundariesInit Start;
 
-		BoundariesInit Bound;
-		Bound.Position = Vector3(0, 0, 0);
-		Bound.Rotation = Vector3(0, 0, 0);
-		Bound.Scale = Vector3(5, 0.5, 5);
-		Bound.colourR = 0;
-		Bound.colourG = 60;
-		Bound.colourB = 0;
-		Bound.targetchance = 0;
-		Bound.turretchance = 0;
-		Bound.leftWall = false;
-		Bound.rightWall = false;
-		Bound.frontwall = false;
-		Bound.backwall = false;
-		Bound.floor = false;
-		Bound.roof = false;
-		Bound.DrawTexture = BlankTexture;
-		Bound.TargetTexture = TargetTexture;
-		StartBlock.Setup(Bound);
-
+		Start.Position = Vector3(0, 0, 0);
+		Start.Rotation;
+		Start.Scale;
+		Start.colourR;
+		Start.colourG;
+		Start.colourB;
+		Start.targetchance = 0;
+		Start.turretchance = 0;
+		Start.leftWall = true;
+		Start.rightWall = true;
+		Start.frontwall = false;
+		Start.backwall = true;
+		Start.roof = true;
+		Start.floor = true;
+		Start.DrawTexture = MarbleTexture;
+		Start.TurretTexture = TargetTexture;
+		Start.TargetTexture = TargetTexture;
+		StartBlock.Setup(Start);
 
 
 		playerInit player;
-		player.Position = Bound.Position;
+		player.Position = StartBlock.Position;
 		player.Position.y += 5;
 		player.Scale = Vector3(0, 0, 0);
 		player.colourB = 1;
@@ -1264,226 +1228,263 @@ void Level1()
 		player.DrawTexture = BlankTexture;
 		objPlayer.Setup(player);
 
+		corridorsInit Corridor1;
 
-		corridorsInit Temp;
-		Temp.Position = Vector3(Bound.Position.x + 10, Bound.Position.y, Bound.Position.z);
-		Temp.Rotation = Vector3(0, 0, 0);
-		Temp.Scale = Vector3(1, 1, 1);
-		Temp.colourR = 1;
-		Temp.colourG = 1;
-		Temp.colourB = 1;
-		Temp.floorLength = 50;
-		Temp.DrawTexture = MarbleTexture;
-		Temp.TargetTexture = TargetTexture;
-		Temp.CorridorDirection = "Forward";
-		BoundariesInit FirstBlock;
-		FirstBlock.frontwall = true;
-		FirstBlock.backwall = true;
-		FirstBlock.floor = true;
-		FirstBlock.roof = true;
-		FirstBlock.leftWall = true;
-		FirstBlock.rightWall = true;
-		Temp.FirstBlock = FirstBlock;
-		BoundariesInit LastBlock;
-		LastBlock.frontwall = true;
-		LastBlock.backwall = true;
-		LastBlock.floor = true;
-		LastBlock.roof = true;
-		LastBlock.leftWall = true;
-		LastBlock.rightWall = true;
-		Temp.LastBlock = LastBlock;
-		objLevel1Corridor[0].Setup(Temp);
-
-
-		Temp.Position = Vector3(Bound.Position.x - 10, Bound.Position.y, Bound.Position.z);
-		Temp.Rotation = Vector3(0, 0, 0);
-		Temp.Scale = Vector3(1, 1, 1);
-		Temp.colourR = 1;
-		Temp.colourG = 1;
-		Temp.colourB = 1;
-		Temp.floorLength = 50;
-		Temp.DrawTexture = BrickTexture;
-		Temp.TargetTexture = TargetTexture;
-		Temp.CorridorDirection = "Backward";
-		FirstBlock;
-		FirstBlock.frontwall = true;
-		FirstBlock.backwall = true;
-		FirstBlock.floor = true;
-		FirstBlock.roof = true;
-		FirstBlock.leftWall = true;
-		FirstBlock.rightWall = true;
-		Temp.FirstBlock = FirstBlock;
-		LastBlock;
-		LastBlock.frontwall = true;
-		LastBlock.backwall = true;
-		LastBlock.floor = true;
-		LastBlock.roof = true;
-		LastBlock.leftWall = true;
-		LastBlock.rightWall = true;
-		Temp.LastBlock = LastBlock;
-		objLevel1Corridor[1].Setup(Temp);
-
-
-		Temp.Position = Vector3(Bound.Position.x, Bound.Position.y, Bound.Position.z - 10);
-		Temp.Rotation = Vector3(0, 0, 0);
-		Temp.Scale = Vector3(1, 1, 1);
-		Temp.colourR = 1;
-		Temp.colourG = 1;
-		Temp.colourB = 1;
-		Temp.floorLength = 50;
-		Temp.DrawTexture = Wall2Texture;
-		Temp.TargetTexture = TargetTexture;
-		Temp.CorridorDirection = "Right";
-		FirstBlock;
-		FirstBlock.frontwall = true;
-		FirstBlock.backwall = true;
-		FirstBlock.floor = true;
-		FirstBlock.roof = true;
-		FirstBlock.leftWall = true;
-		FirstBlock.rightWall = true;
-		Temp.FirstBlock = FirstBlock;
-		LastBlock;
-		LastBlock.frontwall = true;
-		LastBlock.backwall = true;
-		LastBlock.floor = true;
-		LastBlock.roof = true;
-		LastBlock.leftWall = true;
-		LastBlock.rightWall = true;
-		Temp.LastBlock = LastBlock;
-		objLevel1Corridor[2].Setup(Temp);
-
-
-		Temp.Position = Vector3(Bound.Position.x, Bound.Position.y, Bound.Position.z + 10);
-		Temp.Rotation = Vector3(0, 0, 0);
-		Temp.Scale = Vector3(1, 1, 1);
-		Temp.colourR = 1;
-		Temp.colourG = 1;
-		Temp.colourB = 1;
-		Temp.floorLength = 50;
-		Temp.DrawTexture = Wall1Texture;
-		Temp.TargetTexture = TargetTexture;
-		Temp.CorridorDirection = "Left";
-		FirstBlock;
-		FirstBlock.frontwall = true;
-		FirstBlock.backwall = true;
-		FirstBlock.floor = true;
-		FirstBlock.roof = true;
-		FirstBlock.leftWall = true;
-		FirstBlock.rightWall = true;
-		Temp.FirstBlock = FirstBlock;
-		LastBlock;
-		LastBlock.frontwall = true;
-		LastBlock.backwall = true;
-		LastBlock.floor = true;
-		LastBlock.roof = true;
-		LastBlock.leftWall = true;
-		LastBlock.rightWall = true;
-		Temp.LastBlock = LastBlock;
-		objLevel1Corridor[3].Setup(Temp);
-
-
-
-		Temp.Position = Vector3(Bound.Position.x, Bound.Position.y + 10, Bound.Position.z);
-		Temp.Rotation = Vector3(0, 0, 0);
-		Temp.Scale = Vector3(1, 1, 1);
-		Temp.colourR = 1;
-		Temp.colourG = 1;
-		Temp.colourB = 1;
-		Temp.floorLength = 50;
-		Temp.DrawTexture = TexSeaFloor;
-		Temp.TargetTexture = TargetTexture;
-		Temp.CorridorDirection = "Up";
-		FirstBlock;
-		FirstBlock.frontwall = true;
-		FirstBlock.backwall = true;
-		FirstBlock.floor = true;
-		FirstBlock.roof = true;
-		FirstBlock.leftWall = true;
-		FirstBlock.rightWall = true;
-		Temp.FirstBlock = FirstBlock;
-		LastBlock;
-		LastBlock.frontwall = true;
-		LastBlock.backwall = true;
-		LastBlock.floor = true;
-		LastBlock.roof = true;
-		LastBlock.leftWall = true;
-		LastBlock.rightWall = true;
-		Temp.LastBlock = LastBlock;
-		objLevel1Corridor[4].Setup(Temp);
-
-		Temp.Position = Vector3(Bound.Position.x, Bound.Position.y - 10, Bound.Position.z);
-		Temp.Rotation = Vector3(0, 0, 0);
-		Temp.Scale = Vector3(1, 1, 1);
-		Temp.colourR = 1;
-		Temp.colourG = 1;
-		Temp.colourB = 1;
-		Temp.floorLength = 50;
-		Temp.DrawTexture = Wall3Texture;
-		Temp.TargetTexture = TargetTexture;
-		Temp.CorridorDirection = "Down";
-		FirstBlock;
-		FirstBlock.frontwall = true;
-		FirstBlock.backwall = true;
-		FirstBlock.floor = true;
-		FirstBlock.roof = true;
-		FirstBlock.leftWall = true;
-		FirstBlock.rightWall = true;
-		Temp.FirstBlock = FirstBlock;
-		LastBlock;
-		LastBlock.frontwall = true;
-		LastBlock.backwall = true;
-		LastBlock.floor = true;
-		LastBlock.roof = true;
-		LastBlock.leftWall = true;
-		LastBlock.rightWall = true;
-		Temp.LastBlock = LastBlock;
-		objLevel1Corridor[5].Setup(Temp);
-
+		Corridor1.Position = StartBlock.Position;
+		Corridor1.Position.x += 10;
+		Corridor1.Rotation;
+		Corridor1.Scale;
+		Corridor1.colourR;
+		Corridor1.colourG;
+		Corridor1.colourB;
+		Corridor1.floorLength = rand()%50+1;
+		Corridor1.CorridorDirection = "Forward";
+		Corridor1.DrawTexture = MarbleTexture;
+		Corridor1.TurretTexture = TargetTexture;
+		Corridor1.TargetTexture = TargetTexture;
+		Corridor1.FirstBlock.leftWall = true;
+		Corridor1.FirstBlock.rightWall = true;
+		Corridor1.FirstBlock.frontwall = false;
+		Corridor1.FirstBlock.backwall = false;
+		Corridor1.FirstBlock.roof = true;
+		Corridor1.FirstBlock.floor = true;
+		Corridor1.LastBlock.leftWall = true;
+		Corridor1.LastBlock.rightWall = true;
+		Corridor1.LastBlock.frontwall = false;
+		Corridor1.LastBlock.backwall = false;
+		Corridor1.LastBlock.roof = true;
+		Corridor1.LastBlock.floor = true;
+		objLevel1Corridor[0].Setup(Corridor1);
 		setup = false;
+		Leveltimer.Restart();
+		Leveltimer.Start();
+		TotalTargets = 0;
 
 
+		int Length = objLevel1Corridor[0].FloorLength;
+		Corridor1.Position = objLevel1Corridor[0].objFloors[Length - 1].Position;
+		Corridor1.Position.x += 10;
+		Corridor1.Rotation;
+		Corridor1.Scale;
+		Corridor1.colourR;
+		Corridor1.colourG;
+		Corridor1.colourB;
+		Corridor1.floorLength = rand() % 50 + 1;
+		Corridor1.CorridorDirection = "Right";
+		Corridor1.DrawTexture = Wall1Texture;
+		Corridor1.TurretTexture = TargetTexture;
+		Corridor1.TargetTexture = TargetTexture;
+		Corridor1.FirstBlock.leftWall = true;
+		Corridor1.FirstBlock.rightWall = false;
+		Corridor1.FirstBlock.frontwall = true;
+		Corridor1.FirstBlock.backwall = false;
+		Corridor1.FirstBlock.roof = true;
+		Corridor1.FirstBlock.floor = true;
+		Corridor1.LastBlock.leftWall = false;
+		Corridor1.LastBlock.rightWall = true;
+		Corridor1.LastBlock.frontwall = true;
+		Corridor1.LastBlock.backwall = true;
+		Corridor1.LastBlock.roof = false;
+		Corridor1.LastBlock.floor = true;
+		objLevel1Corridor[1].Setup(Corridor1);
 
 
-		GameObjectInit TempDebug;
-		TempDebug.position = Vector3(Bound.Position.x + 75.0f, Bound.Position.y + 75.0f, Bound.Position.z + 75.0f);
-		TempDebug.scale = Vector3(2, 2, 2);
-		TempDebug.DrawTexture = MarbleTexture;
-		TempDebug.ColourR = 0;
-		TempDebug.ColourG = 0;
-		TempDebug.ColourB = 0;
-		CollisonTester.Setup(TempDebug);
+		 Length = objLevel1Corridor[1].FloorLength;
+		Corridor1.Position = objLevel1Corridor[1].objFloors[Length - 1].Position;
+		Corridor1.Position.x += 0;
+		Corridor1.Rotation;
+		Corridor1.Scale;
+		Corridor1.colourR;
+		Corridor1.colourG;
+		Corridor1.colourB;
+		Corridor1.floorLength = rand() % 50 + 1;
+		Corridor1.CorridorDirection = "Up";
+		Corridor1.DrawTexture = Wall2Texture;
+		Corridor1.TurretTexture = TargetTexture;
+		Corridor1.TargetTexture = TargetTexture;
+		Corridor1.FirstBlock.leftWall = false;
+		Corridor1.FirstBlock.rightWall = false;
+		Corridor1.FirstBlock.frontwall = false;
+		Corridor1.FirstBlock.backwall = false;
+		Corridor1.FirstBlock.roof = false;
+		Corridor1.FirstBlock.floor = false;
+		Corridor1.LastBlock.leftWall = true;
+		Corridor1.LastBlock.rightWall = true;
+		Corridor1.LastBlock.frontwall = true;
+		Corridor1.LastBlock.backwall = true;
+		Corridor1.LastBlock.roof = true;
+		Corridor1.LastBlock.floor = true;
+		objLevel1Corridor[2].Setup(Corridor1);
+
+		for (int c = 0; c < 6; c++)
+		{
+			for (int F = 0; F < objLevel1Corridor[c].FloorLength; F++)
+			{
+				if (objLevel1Corridor[c].objFloors[F].TARGET == true)
+				{
+					TotalTargets++;
+				}
+			}
+		}
+		TargetsLeft = TotalTargets;
 
 	}
-
-	for (int x = 0; x < 6; x++)
+	TargetsLeft = 0;
+	for (int c = 0; c < 6; c++)
 	{
-		for (int i = 0; i < 50; i++)
+		for (int F = 0; F < objLevel1Corridor[c].FloorLength; F++)
 		{
-			for (int j = 0; j < objLevel1Corridor[x].FloorLength; j++)
+			if (objLevel1Corridor[c].objFloors[F].TARGET == true)
 			{
+				TargetsLeft++;
+			}
+		}
+	}
+	//Collsion Checks
+	for (int C = 0; C < 6; C++)
+	{
+		for (int B = 0; B < 50; B++)
+		{
 
-
-				if (objPlayer.objGunLeft.objbulletlist[i].Alive == true)
+			if (objPlayer.objGunLeft.objbulletlist[B].Alive == true)
+			{
+				for (int F = 0; F < objLevel1Corridor[C].FloorLength; F++)
 				{
-					objLevel1Corridor[x].objTarget.Update();
-					if (CollisionBox::Intersects(objPlayer.objGunLeft.objbulletlist[i], objLevel1Corridor[x].objTarget))
+					if (objLevel1Corridor[C].objFloors[F].objTarget.Health >= 0)
 					{
-						objPlayer.objGunLeft.objbulletlist[i].Alive = false;
-						objLevel1Corridor[x].objFloors[j].Health = 0;
+						if (CollisionBox::Intersects(objPlayer.objGunLeft.objbulletlist[B], objLevel1Corridor[C].objFloors[F].objTarget))
+						{
+							TargetsLeft--;
+							objLevel1Corridor[C].objFloors[F].objTarget.Health = 0;
+						}
 					}
-				}
 
-				if (objPlayer.objGunRight.objbulletlist[i].Alive == true)
+				}
+			}
+			if (objPlayer.objGunRight.objbulletlist[B].Alive == true)
+			{
+				for (int F = 0; F < objLevel1Corridor[C].FloorLength; F++)
 				{
-					if (CollisionBox::Intersects(objPlayer.objGunRight.objbulletlist[i], objLevel1Corridor[x].objTarget))
+					if (objLevel1Corridor[C].objFloors[F].objTarget.Health >= 0)
 					{
-						objPlayer.objGunLeft.objbulletlist[i].Alive = false;
-						objLevel1Corridor[x].objFloors[j].Health = 0;
+						if (CollisionBox::Intersects(objPlayer.objGunRight.objbulletlist[B], objLevel1Corridor[C].objFloors[F].objTarget))
+						{
+							TargetsLeft--;
+							objLevel1Corridor[C].objFloors[F].objTarget.Health = 0;
+						}
 					}
 				}
 			}
 		}
 	}
+
+	if (StartBlock.LeftWall == true)
+	{
+		if (CollisionBox::Intersects(objPlayer, StartBlock.objLeftWall))
+		{
+			objPlayer.Health = 0;
+		}
+	}
+	if (StartBlock.RightWall == true)
+	{
+		if (CollisionBox::Intersects(objPlayer, StartBlock.objRightWall))
+		{
+			 objPlayer.Health = 0;
+		}
+	}
+	if (StartBlock.FrontWall == true)
+	{
+		if (CollisionBox::Intersects(objPlayer, StartBlock.objFrontWall))
+		{
+			 objPlayer.Health = 0;
+		}
+	}
+	if (StartBlock.BackWall == true)
+	{
+		if (CollisionBox::Intersects(objPlayer, StartBlock.objBackWall))
+		{
+			 objPlayer.Health = 0;
+		}
+	}
+	if (StartBlock.Roof == true)
+	{
+		if (CollisionBox::Intersects(objPlayer, StartBlock.objRoof))
+		{
+			 objPlayer.Health = 0;
+
+		}
+	}
+	if (StartBlock.Floor == true)
+	{
+		if (CollisionBox::Intersects(objPlayer, StartBlock.objFloor))
+		{
+			objPlayer.Health = 0;
+		}
+	}
+
+	for (int C = 0; C < 6; C++)
+	{
+		for (int F = 0; F < objLevel1Corridor[C].FloorLength; F++)
+		{
+			if (objLevel1Corridor[C].objFloors[F].BackWall == true)
+			{
+				if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objBackWall))
+				{
+					objPlayer.Health = 0;
+					}
+
+				}
+
+				if (objLevel1Corridor[C].objFloors[F].FrontWall == true)
+				{
+					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objFrontWall))
+					{
+						objPlayer.Health = 0;
+					}
+				}
+
+				if (objLevel1Corridor[C].objFloors[F].LeftWall == true)
+				{
+					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objLeftWall))
+					{
+						 objPlayer.Health = 0;
+					}
+
+
+					if (objLevel1Corridor[C].objFloors[F].RightWall == true)
+					{
+						if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objRightWall))
+						{
+							 objPlayer.Health = 0;
+						}
+
+					}
+
+					if (objLevel1Corridor[C].objFloors[F].Roof == true)
+					{
+						if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objRoof))
+						{
+							 objPlayer.Health = 0;
+						}
+
+					}
+
+					if (objLevel1Corridor[C].objFloors[F].Floor == true)
+					{
+						if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objFloor))
+						{
+							 objPlayer.Health = 0;
+						}
+
+					}
+
+
+				}
+			}
+			//Collsion Checks
+
+		}
+
 	objPlayer.Update();
 	//Camera
 	Camera.Position.x = -objPlayer.ForwardDirection.x;
@@ -1500,329 +1501,21 @@ void Level1()
 	objLevel1Corridor[0].Update();
 	objLevel1Corridor[1].Update();
 	objLevel1Corridor[2].Update();
-	objLevel1Corridor[3].Update();
-	objLevel1Corridor[4].Update();
-	objLevel1Corridor[5].Update();
 	StartBlock.Update();
-
-}
-void Level2()
-{
-
-}
-void Level3()
-{
-
-}
-void Level4()
-{
-
-}
-void Level5()
-{
-
-}
-
-void Lighting()
-{
-	if (KeycodeW == true)
+	EndBlock.Update();
+	if (objPlayer.Health == 0)
 	{
-		objPlayer.W = true;
+		setup = true;
 	}
-	else if (KeycodeW == false)
-	{
-		objPlayer.W = false;
-	}
-
-
-	if (KeycodeA == true)
-	{
-		objPlayer.A = true;
-
-	}
-	else if (KeycodeA == false)
-	{
-		objPlayer.A = false;
-	}
-
-	if (KeycodeS == true)
-	{
-		objPlayer.S = true;
-	}
-	else if (KeycodeS == false)
-	{
-		objPlayer.S = false;
-	}
-
-
-	if (KeycodeD == true)
-	{
-		objPlayer.D = true;
-	}
-	else if (KeycodeD == false)
-	{
-		objPlayer.D = false;
-	}
-
-
-	if (KeycodeUp == true)
-	{
-		objPlayer.UP = true;
-	}
-	else if (KeycodeUp == false)
-	{
-		objPlayer.UP = false;
-	}
-
-
-	if (KeycodeRight == true)
-
-	{
-		objPlayer.RIGHT = true;
-	}
-	else if (KeycodeRight == false)
-	{
-		objPlayer.RIGHT = false;
-	}
-
-
-	if (KeycodeDown == true)
-
-	{
-		objPlayer.DOWN = true;
-	}
-	else if (KeycodeDown == false)
-	{
-		objPlayer.DOWN = false;
-	}
-
-
-	if (KeycodeLeft == true)
-
-	{
-		objPlayer.LEFT = true;
-	}
-	else if (KeycodeLeft == false)
-	{
-		objPlayer.LEFT = false;
-	}
-
-
-
-	if (KeycodePlus == true)
-	{
-		objPlayer.PLUS = true;
-	}
-	else
-	{
-		objPlayer.PLUS = false;
-	}
-
-
-
-	if (KeycodeMinus == true)
-	{
-		objPlayer.MINUS = true;
-	}
-	else
-	{
-		objPlayer.MINUS = false;
-	}
-
-
-	if (KeycodeF == true)
-	{
-		objPlayer.F = true;
-	}
-	else
-	{
-		objPlayer.F = false;
-	}
-
-
-	if (KeycodeQ == true)
-	{
-		objPlayer.Q = true;
-	}
-	else if (KeycodeQ == false)
-	{
-		objPlayer.Q = false;
-	}
-
-
-	if (KeycodeE == true)
-	{
-		objPlayer.E = true;
-	}
-	else if (KeycodeE == false)
-	{
-		objPlayer.E = false;
-	}
-
-	if (KeycodeSpace == true)
-	{
-		objPlayer.SPACE = true;
-	}
-	else if (KeycodeSpace == false)
-	{
-		objPlayer.SPACE = false;
-	}
-
-
-
-	if (KeycodeShift == true)
-	{
-		objPlayer.SHIFT = true;
-	}
-	else if (KeycodeShift == false) {
-		objPlayer.SHIFT = false;
-	}
-
-
-
-	if (KeycodeLControl == true)
-	{
-		objPlayer.CONTROL = true;
-	}
-	else if (KeycodeLControl == false) {
-		objPlayer.CONTROL = false;
-	}
-
-
-	if (KeycodeX == true)
-	{
-		objPlayer.X = true;
-	}
-	else if (KeycodeX == false)
-	{
-		objPlayer.X = false;
-	}
-
-
-
-	if (setup == true)
-	{
-
-
-		BoundariesInit Bound;
-		Bound.Position = Vector3(0, 0, 0);
-		Bound.Rotation = Vector3(0, 0, 0);
-		Bound.Scale = Vector3(5, 0.5, 5);
-		Bound.colourR = 0;
-		Bound.colourG = 60;
-		Bound.colourB = 0;
-		Bound.targetchance = 0;
-		Bound.turretchance = 0;
-		Bound.leftWall = false;
-		Bound.rightWall = false;
-		Bound.frontwall = false;
-		Bound.backwall = false;
-		Bound.floor = false;
-		Bound.roof = false;
-		Bound.DrawTexture = BlankTexture;
-		Bound.TargetTexture = TargetTexture;
-		StartBlock.Setup(Bound);
-
-
-
-		playerInit player;
-		player.Position = Bound.Position;
-		player.Position.z -= 5;
-		player.Scale = Vector3(0, 0, 0);
-		player.colourB = 1;
-		player.colourG = 1;
-		player.colourB = 1;
-		player.Health = 100;
-		player.Rotation = Vector3(0, 0, 0);
-		player.Shots = 0;
-		player.DrawTexture = BlankTexture;
-		objPlayer.Setup(player);
-
-
-		corridorsInit Temp;
-		Temp.Position = Vector3(Bound.Position.x + 10, Bound.Position.y, Bound.Position.z);
-		Temp.Rotation = Vector3(0, 0, 0);
-		Temp.Scale = Vector3(1, 1, 1);
-		Temp.colourR = 1;
-		Temp.colourG = 1;
-		Temp.colourB = 1;
-		Temp.floorLength = 50;
-		Temp.DrawTexture = MarbleTexture;
-		Temp.TargetTexture = TargetTexture;
-		Temp.CorridorDirection = "Forward";
-		BoundariesInit FirstBlock;
-		FirstBlock.frontwall = true;
-		FirstBlock.backwall = true;
-		FirstBlock.floor = true;
-		FirstBlock.roof = true;
-		FirstBlock.leftWall = true;
-		FirstBlock.rightWall = true;
-		Temp.FirstBlock = FirstBlock;
-		BoundariesInit LastBlock;
-		LastBlock.frontwall = true;
-		LastBlock.backwall = true;
-		LastBlock.floor = true;
-		LastBlock.roof = true;
-		LastBlock.leftWall = true;
-		LastBlock.rightWall = true;
-		Temp.LastBlock = LastBlock;
-		objLevel1Corridor[0].Setup(Temp);
-
-
-		Temp.Position = Vector3(Bound.Position.x - 10, Bound.Position.y, Bound.Position.z);
-		Temp.Rotation = Vector3(0, 0, 0);
-		Temp.Scale = Vector3(1, 1, 1);
-		Temp.colourR = 1;
-		Temp.colourG = 1;
-		Temp.colourB = 1;
-		Temp.floorLength = 50;
-		Temp.DrawTexture = BrickTexture;
-		Temp.TargetTexture = TargetTexture;
-		Temp.CorridorDirection = "Backward";
-		FirstBlock;
-		FirstBlock.frontwall = true;
-		FirstBlock.backwall = true;
-		FirstBlock.floor = true;
-		FirstBlock.roof = true;
-		FirstBlock.leftWall = true;
-		FirstBlock.rightWall = true;
-		Temp.FirstBlock = FirstBlock;
-		LastBlock;
-		LastBlock.frontwall = true;
-		LastBlock.backwall = true;
-		LastBlock.floor = true;
-		LastBlock.roof = true;
-		LastBlock.leftWall = true;
-		LastBlock.rightWall = true;
-		Temp.LastBlock = LastBlock;
-		objLevel1Corridor[1].Setup(Temp);
-		setup = false;
-	}
-
-	objPlayer.Update();
-	//Camera
-	Camera.Position.x = -objPlayer.ForwardDirection.x;
-	Camera.Position.y = -objPlayer.ForwardDirection.y;
-	Camera.Position.z = -objPlayer.ForwardDirection.z;
-	Camera.Position = Camera.MultiplyVector(Camera.Position, 1.1f);
-	Camera.Position = Camera.VectorAdd(Camera.Position, objPlayer.Position);
-	Eye = XMVectorSet(Camera.Position.x, Camera.Position.y, Camera.Position.z, 0.0f);
-	At = XMVectorSet(objPlayer.Position.x, objPlayer.Position.y, objPlayer.Position.z, 0.0f);
-	Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-	g_View = XMMatrixLookAtLH(Eye, At, Up);
-	cbNeverChanges.mView = XMMatrixTranspose(g_View);
-	corridorsInit CORRIDOR;
-	GameObject Test;
-	Test.Scale = Vector3(10, 10, 10);
-	Test.DrawTexture = TargetTexture;
-	Test.Update();
-	objLevel1Corridor[0].Update();
 }
 
 double Timer;
 double DeltaTime = 0;
+float t = 0;
 void Render()
 {
+	TargetsKilled = TotalTargets - TargetsLeft;
+	TargetsLeft = TotalTargets - TargetsKilled;
 	//Create Stop Watch
 	Stopwatch FrameTime;
 	FrameTime.Start();
@@ -1864,15 +1557,8 @@ void Render()
 	cbChangesOnResize.mProjection = XMMatrixTranspose(g_Projection);
 	DevCon->UpdateSubresource(g_pCBChangeOnResize, 0, nullptr, &cbChangesOnResize, 0, 0);
 
-
-	//Entering debug levels
-	if (Debug == true)
-	{
-		Lighting();
-	}
-
-
-	//Adds 1 to frame rate 
+	objPlayer.DeltaTime = DeltaTime;
+	Level1();
 	CurrentFrameRate += 1;
 
 	Timer = Frametimer.ElapsedSeconds();
@@ -1891,11 +1577,50 @@ void Render()
 	TText += TFPS;
 	const wchar_t *Text = TText.c_str();
 	//Combines Frame Time To TExt
+	DeltaTime = FrameTime.ElapsedSeconds();
 	wstring DET = std::to_wstring(DeltaTime);
 	wstring DText = L"Frame Time = ";
 
 	DText += DET;
 	const wchar_t *Text2 = DText.c_str();
+
+
+//Combines ShotFired To text
+	wstring SHFI = std::to_wstring(objPlayer.Shots);
+	wstring ShText = L"Shots Fired = ";
+	LevelTime = Leveltimer.ElapsedSeconds();
+	ShText += SHFI;
+	const wchar_t *Text3 = ShText.c_str();
+	//Combines LevelTime To text
+	wstring Lev = std::to_wstring(LevelTime);
+	wstring LText = L"Level Time = ";
+	LText += Lev;
+	const wchar_t *Text4 = LText.c_str();
+
+
+	wstring TT = std::to_wstring(TotalTargets);
+	wstring TTEXT = L"Total Targets = ";
+	TTEXT += TT;
+	const wchar_t * Text5 = TTEXT.c_str();
+	wstring TK = std::to_wstring(TargetsKilled);
+	wstring TKEXT = L"Targets Killed = ";
+	TKEXT += TK;
+	const wchar_t * Text6 = TKEXT.c_str();
+
+	wstring TL = std::to_wstring(TargetsLeft);
+	wstring TLEXT = L"Targets Left = ";
+	TLEXT += TL;
+	const wchar_t * Text7 = TLEXT.c_str();
+
+
+
+	PercentageKilled =  (TargetsLeft/TotalTargets   )*100;
+
+	wstring TP = std::to_wstring(PercentageKilled);
+	wstring TPEXT = L"Percentage Left = ";
+	TPEXT += TP;
+	const wchar_t * Text8 = TPEXT.c_str();
+
 
 	//Text
 	spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
@@ -1903,12 +1628,13 @@ void Render()
 	spriteBatch->Begin();
 	spriteFont->DrawString(spriteBatch.get(), Text, XMFLOAT2(0, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Rate
 	spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Time
-	spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Time
-
+	//spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Time
+	spriteFont->DrawString(spriteBatch.get(), Text3, XMFLOAT2(1550, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+	spriteFont->DrawString(spriteBatch.get(), Text4, XMFLOAT2(1550, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+	spriteFont->DrawString(spriteBatch.get(), Text5, XMFLOAT2(1550, 100), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+	spriteFont->DrawString(spriteBatch.get(), Text6, XMFLOAT2(1550, 150), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+	spriteFont->DrawString(spriteBatch.get(), Text7, XMFLOAT2(1550, 200), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+	spriteFont->DrawString(spriteBatch.get(), Text8, XMFLOAT2(1550, 250), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
 	spriteBatch->End();
-
-
-
 	swapChain->Present(0, 0); //Swaps the chian
-	DeltaTime = FrameTime.ElapsedMilliseconds(); //Sets Delta Time as frame time stopwatch value 
 }

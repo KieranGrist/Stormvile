@@ -15,10 +15,11 @@ public:
 	float BulletWait =0;
 	Bullet *objbulletlist; // = new Bullet[50];
 	ID3D11ShaderResourceView * DrawTexture;
+	float DeltaTime;
 	Gun();
 	void Setup(initGun Init);
 	void Setup(GameObjectInit Init) override;
-	void Fire();
+	bool Fire();
 	void Update() override;
 	~Gun();
 };

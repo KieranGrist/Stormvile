@@ -22,7 +22,9 @@ void Player::Setup(playerInit Init)
 	Setup(Temp);
 	Health = Init.Health;
 	Shots = Init.Shots;
-
+	Velocity = Vector3(0, 0, 0);
+	PITCH = 0;
+	YAW = 0;
 
 }
 void Player::Setup(GameObjectInit Init)
@@ -121,6 +123,7 @@ void Player::Update()
 	GunTemp.offsetdirection = "Left";
 	GunTemp.DrawTexture = DrawTexture;
 	objGunLeft.Setup(GunTemp);
+	objGunLeft.DeltaTime = DeltaTime;
 	GunTemp.Position = Position;
 	GunTemp.Rotation = Rotation;
 	GunTemp.Velocity = Velocity;
@@ -128,21 +131,29 @@ void Player::Update()
 	GunTemp.offsetdirection = "Right";
 	GunTemp.DrawTexture = DrawTexture;
 	objGunRight.Setup(GunTemp);
+	objGunRight.DeltaTime = DeltaTime;
+	objGunLeft.Update();
+	objGunRight.Update();
 	if (F == true)
-	{
-		if (objGunLeft.BulletWait <= 0)
+	{	
+		if (objGunLeft.BulletWait >= 0.25)
 		{
+			objGunLeft.BulletWait = 0;
 
-			objGunLeft.BulletWait = 1;
-
-			objGunLeft.Fire();
-			Shots += 1;
+			if (objGunLeft.Fire() == true)
+			{
+				Shots += 1;
+			}
+	
 		}
-		if (objGunRight.BulletWait <= 0)
+		if (objGunRight.BulletWait >= 0.25)
 		{
-			objGunRight.BulletWait = 1;
-			objGunRight.Fire();
-			Shots += 1;
+	
+			objGunRight.BulletWait = 0;
+			if (objGunRight.Fire() == true)
+			{
+				Shots += 1;
+			}
 			F = false;
 
 
@@ -151,9 +162,11 @@ void Player::Update()
 }
 	objGunLeft.Update();
 	objGunRight.Update();
+
+
 	Acceleration = DivideVector(Force , Mass);
-	Velocity =VectorAdd(Velocity, MultiplyVector(Acceleration ,0.01f));
-	Position = VectorAdd(Position, MultiplyVector(Velocity,0.01f));
+	Velocity =VectorAdd(Velocity, MultiplyVector(Acceleration ,DeltaTime));
+	Position = VectorAdd(Position, MultiplyVector(Velocity, DeltaTime));
 	Rotation = Vector3(PITCH,YAW,0);
 	Force = Vector3(0, 0, 0);	
 }

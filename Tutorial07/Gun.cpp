@@ -9,6 +9,7 @@ Gun::Gun()
 }
 void Gun::Setup(initGun Init)
 {
+	DeltaTime = 0;
 	for (int i = 0; i < 50; i++)
 	{
 		objbulletlist[i].BulletID = i;
@@ -35,6 +36,7 @@ void Gun::Setup(initGun Init)
 }
 void Gun::Setup(GameObjectInit Init)
 {
+	DeltaTime = 0;
 	Position = Init.position;
 	Rotation = Init.rotation;
 	Scale = Init.scale;
@@ -44,13 +46,12 @@ void Gun::Setup(GameObjectInit Init)
 	DrawTexture = Init.DrawTexture;
 }
 
-void Gun::Fire()
+bool Gun::Fire()
 {
 	for (int i = 0; i < 50; i++)
 	{
 		if (objbulletlist[i].Alive == false)
-		{
-			BulletWait = 1;
+		{	
 			bulletInit TempBullet;
 			TempBullet.DrawTexture = DrawTexture;;
 			TempBullet.GunPos = Position;
@@ -58,20 +59,21 @@ void Gun::Fire()
 			TempBullet.Velocity = Velocity;
 			objbulletlist[i].Setup(TempBullet);
 			objbulletlist[i].Alive = true;
-			
+			objbulletlist[i].TimeOutDestructor = 0;
 			i = 60;
+			return true;
 		}
 
 	}
+	return false;
 }
 void Gun::Update()
 {
-	if (BulletWait >= 0)
-	{
 
 
-		BulletWait *= 0.5f;
-	}
+
+		BulletWait += DeltaTime;
+
 
 
 
@@ -80,7 +82,8 @@ void Gun::Update()
 		if (objbulletlist[i].Alive == true)
 		{
 			objbulletlist[i].Update();
-			if (objbulletlist[i].TimeOutDestructor >= 50)
+			objbulletlist[i].DeltaTime = DeltaTime;
+			if (objbulletlist[i].TimeOutDestructor >= 10)
 			{
 				objbulletlist[i].Alive = false;
 			}

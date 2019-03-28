@@ -17,6 +17,7 @@ public:
 	Vector3 ForwardDirection;
 	float Pitch, Yaw,Mass;
 	bool Alive = false;
+	float DeltaTime;
 	int GridID;
 	int BulletID =0;
 	Bullet();
