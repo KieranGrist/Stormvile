@@ -17,7 +17,7 @@ public:
 	Gun objGunLeft,objGunRight;
 	Vector3  Force, Acceleration, Velocity;
 	Vector3 ForwardDirection, RightDirecton,UpDirection;
-	float Mass, PITCH, YAW, Health,DeltaTime, Sensertivity = 0.05f;
+	float Mass, PITCH, YAW, Health,DeltaTime, Sensertivity = 0.5f;
 	int Shots;
 	bool Collided;
 	bool W, A, S, D, Q, E,LEFT,RIGHT,UP,DOWN, SHIFT, CONTROL,SPACE,X,PLUS,MINUS,F;

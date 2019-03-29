@@ -21,7 +21,7 @@ void Corridor::Setup(corridorsInit Init)
 	Temp.ColourR = Init.colourR;
 	Temp.DrawTexture = Init.DrawTexture;
     GameObject::Setup(Temp);
-	int RandomNumber = 50;
+	int RandomNumber = 25;
 	int RandomNumber2 = rand() % 50;;
 	if (Init.floorLength > 50)
 	{

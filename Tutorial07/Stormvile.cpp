@@ -1237,7 +1237,7 @@ void Level1()
 		Corridor1.colourR;
 		Corridor1.colourG;
 		Corridor1.colourB;
-		Corridor1.floorLength = rand()%50+1;
+		Corridor1.floorLength = rand()%50+2;
 		Corridor1.CorridorDirection = "Forward";
 		Corridor1.DrawTexture = MarbleTexture;
 		Corridor1.TurretTexture = TargetTexture;
@@ -1269,7 +1269,7 @@ void Level1()
 		Corridor1.colourR;
 		Corridor1.colourG;
 		Corridor1.colourB;
-		Corridor1.floorLength = rand() % 50 + 1;
+		Corridor1.floorLength = rand() % 50 +2;
 		Corridor1.CorridorDirection = "Right";
 		Corridor1.DrawTexture = Wall1Texture;
 		Corridor1.TurretTexture = TargetTexture;
@@ -1297,7 +1297,7 @@ void Level1()
 		Corridor1.colourR;
 		Corridor1.colourG;
 		Corridor1.colourB;
-		Corridor1.floorLength = rand() % 50 + 1;
+		Corridor1.floorLength = rand() % 50 + 2;
 		Corridor1.CorridorDirection = "Up";
 		Corridor1.DrawTexture = Wall2Texture;
 		Corridor1.TurretTexture = TargetTexture;
@@ -1311,10 +1311,67 @@ void Level1()
 		Corridor1.LastBlock.leftWall = true;
 		Corridor1.LastBlock.rightWall = true;
 		Corridor1.LastBlock.frontwall = true;
+		Corridor1.LastBlock.backwall = false;
+		Corridor1.LastBlock.roof = true;
+		Corridor1.LastBlock.floor = false;
+		objLevel1Corridor[2].Setup(Corridor1);
+
+		Length = objLevel1Corridor[2].FloorLength;
+		Corridor1.Position = objLevel1Corridor[2].objFloors[Length - 1].Position;
+		Corridor1.Position.x -= 10;
+		Corridor1.Rotation;
+		Corridor1.Scale;
+		Corridor1.colourR;
+		Corridor1.colourG;
+		Corridor1.colourB;
+		Corridor1.floorLength = rand() % 50 + 2;
+		Corridor1.CorridorDirection = "Backward";
+		Corridor1.DrawTexture = Wall3Texture;
+		Corridor1.TurretTexture = TargetTexture;
+		Corridor1.TargetTexture = TargetTexture;
+		Corridor1.FirstBlock.leftWall = true;
+		Corridor1.FirstBlock.rightWall = true;
+		Corridor1.FirstBlock.frontwall = false;
+		Corridor1.FirstBlock.backwall = false;
+		Corridor1.FirstBlock.roof = true;
+		Corridor1.FirstBlock.floor = true;
+		Corridor1.LastBlock.leftWall = true;
+		Corridor1.LastBlock.rightWall = false;
+		Corridor1.LastBlock.frontwall = false;
 		Corridor1.LastBlock.backwall = true;
 		Corridor1.LastBlock.roof = true;
 		Corridor1.LastBlock.floor = true;
-		objLevel1Corridor[2].Setup(Corridor1);
+		objLevel1Corridor[3].Setup(Corridor1);
+
+
+
+		Length = objLevel1Corridor[3].FloorLength;
+		Corridor1.Position = objLevel1Corridor[3].objFloors[Length - 1].Position;
+		Corridor1.Position.x -=0;
+		Corridor1.Rotation;
+		Corridor1.Scale;
+		Corridor1.colourR;
+		Corridor1.colourG;
+		Corridor1.colourB;
+		Corridor1.floorLength = rand() % 50 + 2;
+		Corridor1.CorridorDirection = "Right";
+		Corridor1.DrawTexture = BrickTexture;
+		Corridor1.TurretTexture = TargetTexture;
+		Corridor1.TargetTexture = TargetTexture;
+		Corridor1.FirstBlock.leftWall = false;
+		Corridor1.FirstBlock.rightWall = false;
+		Corridor1.FirstBlock.frontwall = false;
+		Corridor1.FirstBlock.backwall = false;
+		Corridor1.FirstBlock.roof = false;
+		Corridor1.FirstBlock.floor = false;
+		Corridor1.LastBlock.leftWall = false;
+		Corridor1.LastBlock.rightWall = false;
+		Corridor1.LastBlock.frontwall = false;
+		Corridor1.LastBlock.backwall = false;
+		Corridor1.LastBlock.roof = false;
+		Corridor1.LastBlock.floor = false;
+		objLevel1Corridor[4].Setup(Corridor1);
+
 
 		for (int c = 0; c < 6; c++)
 		{
@@ -1451,35 +1508,38 @@ void Level1()
 					}
 
 
-					if (objLevel1Corridor[C].objFloors[F].RightWall == true)
-					{
-						if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objRightWall))
-						{
-							 objPlayer.Health = 0;
-						}
-
-					}
-
-					if (objLevel1Corridor[C].objFloors[F].Roof == true)
-					{
-						if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objRoof))
-						{
-							 objPlayer.Health = 0;
-						}
-
-					}
-
-					if (objLevel1Corridor[C].objFloors[F].Floor == true)
-					{
-						if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objFloor))
-						{
-							 objPlayer.Health = 0;
-						}
-
-					}
-
 
 				}
+
+				if (objLevel1Corridor[C].objFloors[F].RightWall == true)
+				{
+					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objRightWall))
+					{
+						objPlayer.Health = 0;
+					}
+
+				}
+
+				if (objLevel1Corridor[C].objFloors[F].Roof == true)
+				{
+					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objRoof))
+					{
+						objPlayer.Health = 0;
+					}
+
+				}
+
+				if (objLevel1Corridor[C].objFloors[F].Floor == true)
+				{
+					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objFloor))
+					{
+						objPlayer.Health = 0;
+					}
+
+				}
+
+
+
 			}
 			//Collsion Checks
 
@@ -1501,6 +1561,8 @@ void Level1()
 	objLevel1Corridor[0].Update();
 	objLevel1Corridor[1].Update();
 	objLevel1Corridor[2].Update();
+	objLevel1Corridor[3].Update();
+	objLevel1Corridor[4].Update();
 	StartBlock.Update();
 	EndBlock.Update();
 	if (objPlayer.Health == 0)

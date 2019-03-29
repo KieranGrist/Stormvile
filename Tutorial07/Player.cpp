@@ -79,32 +79,32 @@ void Player::Update()
 	*/
 	if (LEFT == true)
 	{
-		Force = VectorSub(Force, MultiplyVector(RightDirecton, 10));
+		Force -= RightDirecton * 100;
 	}
 	if (RIGHT == true)
 	{
-		Force = VectorAdd(Force, MultiplyVector(RightDirecton, 10));
+		Force += RightDirecton * 100;
 	}
 	if (X == true)
 	{
-		Velocity = DivideVector(Velocity, 1.01f);
+		Velocity /= 1.01f;
 		//		Velocity = DivideVector(Velocity, );
 	}
 	if (UP == true)
 	{
-		Force = VectorAdd(Force, MultiplyVector(ForwardDirection, 10));
+		Force += ForwardDirection * 100;
 	}
 	if (DOWN == true)
 	{
-		Force = VectorSub(Force, MultiplyVector(ForwardDirection, 10));
+		Force -= ForwardDirection * 100;
 	}
 	if (SPACE == true)
 	{
-		Force = VectorAdd(Force, MultiplyVector(Vector3(UpDirection), 10));
+		Force += UpDirection * 100;
 	}
 	if (CONTROL == true)
 	{
-		Force = VectorSub(Force, MultiplyVector(Vector3(UpDirection), 10));
+		Force -= UpDirection * 100;
 	}
 	if (PLUS == true)
 	{
@@ -163,10 +163,10 @@ void Player::Update()
 	objGunLeft.Update();
 	objGunRight.Update();
 
-
-	Acceleration = DivideVector(Force , Mass);
-	Velocity =VectorAdd(Velocity, MultiplyVector(Acceleration ,DeltaTime));
-	Position = VectorAdd(Position, MultiplyVector(Velocity, DeltaTime));
+	Velocity /= 1.01f;
+	Acceleration = Force / Mass;
+	Velocity += Acceleration *DeltaTime;
+	Position += Velocity* DeltaTime;
 	Rotation = Vector3(PITCH,YAW,0);
 	Force = Vector3(0, 0, 0);	
 }
