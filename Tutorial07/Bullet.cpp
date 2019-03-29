@@ -24,7 +24,6 @@ void Bullet::Setup(bulletInit Init)
 	Scale =  Vector3(0.1,0.1, 0.1);
 	DrawTexture = Init.DrawTexture;
 	Position = Init.GunPos;
-	Velocity = Init.Velocity;
 	int myRand = rand() % 255;
 	Red = (myRand > 128) ? 255 : 0;//@Ternary operator (condition) ? (if true) : (if false)
 	Green = (myRand <= 128) ? 255 : 0;
@@ -35,7 +34,7 @@ void Bullet::Setup(bulletInit Init)
 	DrawTexture = Init.DrawTexture;
 	//AABB 
 	Alive = true;
-	Force = MultiplyVector(ForwardDirection, 10000);
+	Force = MultiplyVector(ForwardDirection, 1000);
 	Velocity = Vector3(0, 0, 0);
 	Acceleration = Vector3(0, 0, 0);
 }
@@ -44,12 +43,12 @@ void Bullet::Update()
 	TimeOutDestructor += DeltaTime;
 	MinExtent = VectorSub(Position, Vector3(1, 1, 1));
 	MaxExtent = VectorAdd(Position, Vector3(1, 1, 1));
-	Mass = 1.1f;
+	Mass = 1.0f;
 	Acceleration =Force/ Mass;
 	Velocity += Acceleration*DeltaTime;
 	Position += Velocity*DeltaTime;
 
-	//Force = Vector3(0, 0, 0);
+//	Force = Vector3(0, 0, 0);
 	Draw();
 }
 

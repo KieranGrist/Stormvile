@@ -404,6 +404,7 @@
     <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="Gun.cpp" />
     <ClCompile Include="Player.cpp" />
+    <ClCompile Include="Room.cpp" />
     <ClCompile Include="Stormvile.cpp" />
     <ClCompile Include="Target.cpp" />
     <ClCompile Include="GameObject.cpp" />
@@ -417,6 +418,7 @@
     <ClInclude Include="Gun.h" />
     <ClInclude Include="Player.h" />
     <CLInclude Include="resource.h" />
+    <ClInclude Include="Room.h" />
     <ClInclude Include="StopWatch.h" />
     <ClInclude Include="Target.h" />
     <ClInclude Include="GameObject.h" />

@@ -21,6 +21,7 @@
     <ClCompile Include="Target.cpp" />
     <ClCompile Include="CollisionBox.cpp" />
     <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="Room.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CLInclude Include="resource.h">
@@ -40,6 +41,7 @@
     <ClInclude Include="CollisionBox.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="StopWatch.h" />
+    <ClInclude Include="Room.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Tutorial07.fx">

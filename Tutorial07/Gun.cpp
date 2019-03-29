@@ -9,7 +9,6 @@ Gun::Gun()
 }
 void Gun::Setup(initGun Init)
 {
-	DeltaTime = 0;
 	for (int i = 0; i < 50; i++)
 	{
 		objbulletlist[i].BulletID = i;
@@ -18,25 +17,23 @@ void Gun::Setup(initGun Init)
 	Position = Init.Position;
 	Rotation = Init.Rotation;
 	Velocity = Init.Velocity;
-
 	Scale = Vector3(1, 1, 1);
 	DrawTexture = Init.DrawTexture;
 	if (Init.offsetdirection == "Left")
 	{
 		Vector3 Left = VectorCrossProduct(Vector3(0, 1, 0), Init.ForwardDirection);
-		Left = MultiplyVector(Left, 2.5);
-		Position = VectorSub(Position, Left);
+		Left *1.5f;
+		Position -=  Left;
 	}
 	if (Init.offsetdirection == "Right")
 	{
 		Vector3 Right = VectorCrossProduct(Vector3(0, 1, 0), Init.ForwardDirection);
-		Right = MultiplyVector(Right, 2.5);
-		Position = VectorAdd(Position, Right);
+		Right *1.5f;
+		Position += Right;
 	}
 }
 void Gun::Setup(GameObjectInit Init)
 {
-	DeltaTime = 0;
 	Position = Init.position;
 	Rotation = Init.rotation;
 	Scale = Init.scale;
@@ -56,7 +53,6 @@ bool Gun::Fire()
 			TempBullet.DrawTexture = DrawTexture;;
 			TempBullet.GunPos = Position;
 			TempBullet.GunRot = Rotation;
-			TempBullet.Velocity = Velocity;
 			objbulletlist[i].Setup(TempBullet);
 			objbulletlist[i].Alive = true;
 			objbulletlist[i].TimeOutDestructor = 0;

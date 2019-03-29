@@ -39,6 +39,7 @@ void Player::Setup(GameObjectInit Init)
 }
 void Player::Update()
 {
+	//Health = 100;
 	MinExtent = VectorSub(Position, Vector3(1, 1, 1));
 	MaxExtent = VectorAdd(Position, Vector3(1, 1, 1));
 	//LEFT handed system 
@@ -46,7 +47,7 @@ void Player::Update()
 	RightDirecton = VectorCrossProduct(Vector3(0, 1, 0), ForwardDirection);
 	UpDirection = VectorCrossProduct(ForwardDirection, RightDirecton);
 	Mass = 1;
-
+	
 
 
 	if (A == true)
@@ -66,7 +67,7 @@ void Player::Update()
 		PITCH += Sensertivity;
 	}
 	PITCH = clamp(PITCH, 89, -89);
-	Sensertivity = clamp(Sensertivity, 0.5, -0.5);
+	Sensertivity = clamp(Sensertivity, 2, -0.5);
 	/*
 	LEFT, RIGHT = THRUSTERS LEFT AND RIGHT
 	UP, DOWN = THRUSTERS FOWARD AND BACKWARDS
@@ -122,16 +123,17 @@ void Player::Update()
 	GunTemp.ForwardDirection = ForwardDirection;
 	GunTemp.offsetdirection = "Left";
 	GunTemp.DrawTexture = DrawTexture;
-	objGunLeft.Setup(GunTemp);
 	objGunLeft.DeltaTime = DeltaTime;
+	objGunLeft.Setup(GunTemp);
 	GunTemp.Position = Position;
 	GunTemp.Rotation = Rotation;
 	GunTemp.Velocity = Velocity;
 	GunTemp.ForwardDirection = ForwardDirection;
 	GunTemp.offsetdirection = "Right";
 	GunTemp.DrawTexture = DrawTexture;
-	objGunRight.Setup(GunTemp);
 	objGunRight.DeltaTime = DeltaTime;
+	objGunRight.Setup(GunTemp);
+	
 	objGunLeft.Update();
 	objGunRight.Update();
 	if (F == true)
@@ -163,7 +165,7 @@ void Player::Update()
 	objGunLeft.Update();
 	objGunRight.Update();
 
-	Velocity /= 1.01f;
+Velocity /= 1.01f;
 	Acceleration = Force / Mass;
 	Velocity += Acceleration *DeltaTime;
 	Position += Velocity* DeltaTime;

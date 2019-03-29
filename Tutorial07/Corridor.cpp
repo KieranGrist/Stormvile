@@ -12,6 +12,7 @@ void Corridor::Reset()
 }
 void Corridor::Setup(corridorsInit Init)
 {
+
 	GameObjectInit Temp;
 	Temp.position = Init.Position;
 	Temp.scale = Init.Scale;
@@ -26,6 +27,10 @@ void Corridor::Setup(corridorsInit Init)
 	if (Init.floorLength > 50)
 	{
 		Init.floorLength = 50;
+	}
+	for (int i = 0; i < FloorLength; i++)
+	{
+		objFloors[i].TARGET = false;
 	}
 	FloorLength = Init.floorLength;
 //All Corridors Start from the ation position and then create in the intended direction

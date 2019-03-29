@@ -4,7 +4,7 @@
 #include "GameObject.h"
 struct bulletInit
 {
-	Vector3 GunPos,  GunRot, Velocity;
+	Vector3 GunPos,  GunRot;
 	ID3D11ShaderResourceView * DrawTexture;
 };
 

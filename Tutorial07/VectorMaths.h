@@ -139,14 +139,14 @@ class VectorMaths
 		);
 		return RV;
 	}
-	inline 	Vector3 VectorNormalized(Vector3 a)
+	inline 	Vector3 VectorNormalized(Vector3 a) //Normalise Vector
 	{
 		Vector3 RV = Vector3(a.x, a.y, a.z);
 		RV = DivideVector(RV, VectorLength(RV));
 		return RV;
 	}
 
-	inline 	float DotProduct(Vector3 A, Vector3 B, bool normalise = true)
+	inline 	float DotProduct(Vector3 A, Vector3 B, bool normalise = true) //Find the dot product of a vector
 	{
 		float RV;
 		Vector3 Vec1 = Vector3(A.x, A.y, A.z);
@@ -161,13 +161,13 @@ class VectorMaths
 		return RV;
 	}
 
-	inline 	float VectorToRadians(Vector2 a)
+	inline 	float VectorToRadians(Vector2 a) //Turn a Vector into a radian
 	{
 		float RV = 0.0f;
 		RV = atan2(a.y, a.x);  // Summary: Returns the arc-tangent of f - the angle in radians whose tangent is f.
 		return RV;
 	}
-	inline 	 Vector2 RadianToVector(float RV)
+	inline 	 Vector2 RadianToVector(float RV) //Turn a radian itno a vector
 	{
 		//SIN = OPPOSITE
 		//COS = ADJACENT
@@ -178,11 +178,11 @@ class VectorMaths
 	{
 		return RV * (Pi / 180);
 	}
-	inline 	float Rad2Deg(float RV)
+	inline 	float Rad2Deg(float RV) 
 	{
 		return RV * (180 / Pi);
 	}
-	inline 	Vector3 EulerAnglesToDirection(Vector2 EulerAngle)
+	inline 	Vector3 EulerAnglesToDirection(Vector2 EulerAngle) //Turn Rotation To Direciton 2D
 	{
 		//takes a 2D vector converts it to a direction then returns
 		//Warning this edits X and Z and does not touch Y
@@ -196,7 +196,7 @@ class VectorMaths
 		);
 		return RV;
 	}
-	inline 	Vector3 EulerAnglesToDirection(Vector3 EulerAngle)
+	inline 	Vector3 EulerAnglesToDirection(Vector3 EulerAngle) //Turn Rotation To Direciton
 	{
 		float Pitch = Deg2Rad(EulerAngle.x);
 		float Yaw = Deg2Rad(EulerAngle.y);
@@ -209,7 +209,7 @@ class VectorMaths
 		);
 		return RV;
 	}
-	inline Vector3 EulerAnglesToDirectionRoll(Vector3 EulerAngle)
+	inline Vector3 EulerAnglesToDirectionRoll(Vector3 EulerAngle) //Turn Rotation To Direction For Roll
 	{
 		Vector3 RV = Vector3();
 		RV.x = cos(EulerAngle.z);
@@ -218,7 +218,7 @@ class VectorMaths
 
 		return RV;
 	}
-	inline Vector3 VectorCrossProduct(Vector3 a, Vector3 b, bool normalise = true)
+	inline Vector3 VectorCrossProduct(Vector3 a, Vector3 b, bool normalise = true) //Find the Crossproduct
 	{
 		if (normalise == true)
 		{
@@ -233,7 +233,7 @@ class VectorMaths
 
 		return C;
 	}
-	inline 	Vector3 VecLerp(Vector3 A, Vector3 B, float t)
+	inline 	Vector3 VecLerp(Vector3 A, Vector3 B, float t) //Lerp Between Two Points 
 	{
 
 		Vector3 TempA = MultiplyVector(A, 1.0f - t);

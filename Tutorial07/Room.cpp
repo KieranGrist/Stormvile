@@ -1,15 +1,14 @@
-#include "Boundaries.h"
+#include "Room.h"
 
 
 
-Boundaries::Boundaries()
+Room::Room()
 {
+
 }
 
-
-void Boundaries::Setup(BoundariesInit Init)
+void Room::Setup(roomInit Init)
 {
-
 	GameObjectInit Temp;
 	Temp.position = Init.Position;
 	Temp.scale = Init.Scale;
@@ -27,71 +26,31 @@ void Boundaries::Setup(BoundariesInit Init)
 	Floor = Init.floor;
 	turretchance = Init.turretchance;
 	targetchance = Init.targetchance;
+	int roomsize = Init.RoomSize;
 	if (BackWall == true)
 	{
 
-		Temp.position = Vector3(Position.x - 5.5f, Position.y + 5.5f, Position.z);
+		Temp.position = Vector3(Position.x, Position.y, Position.z);
 		Temp.rotation = Vector3(Rotation.x, Rotation.y, Rotation.z);
-		Temp.scale = Vector3(0.5, 5, 5);
+		Temp.scale = Vector3(0.5, 10, roomsize);
 		Temp.ColourR = Red;
 		Temp.ColourG = Green;
 		Temp.ColourB = Blue;
 		objBackWall.Setup(Temp);
 	}
-	if (FrontWall == true)
-	{
-		Temp.position = Vector3(Position.x + 5.5f, Position.y + 5.5f, Position.z);
-		Temp.rotation = Vector3(Rotation.x, Rotation.y, Rotation.z);
-		Temp.scale = Vector3(0.5, 5, 5);
-		Temp.ColourR = Red;
-		Temp.ColourG = Green;
-		Temp.ColourB = Blue;
-		objFrontWall.Setup(Temp);
-	}
 	if (LeftWall == true)
 	{
-		Temp.position = Vector3(Position.x, Position.y + 5.5f, Position.z + 5.5f);
-		Temp.rotation = Vector3(0, 0, 0);
-		Temp.scale = Vector3(5.0f, 5.0f, 0.5f);
+		Temp.position = Vector3(Position.x, Position.y, Position.z+(roomsize+0.5));
+		Temp.rotation = Vector3(Rotation.x, Rotation.y, Rotation.z);
+		Temp.scale = Vector3(roomsize, 10, 0.5f);
 		Temp.ColourR = Red;
 		Temp.ColourG = Green;
 		Temp.ColourB = Blue;
 		objLeftWall.Setup(Temp);
 	}
-	if (RightWall == true)
-	{
-		Temp.position = Vector3(Position.x, Position.y + 5.5f, Position.z - 5.5f);
-		Temp.rotation = Vector3(Rotation.x, Rotation.y, Rotation.z);
-		Temp.scale = Vector3(5.0f, 5.0f, 0.5f);
-		Temp.ColourR = Red;
-		Temp.ColourG = Green;
-		Temp.ColourB = Blue;
-		objRightWall.Setup(Temp);
-	}
-	if (Roof == true)
-	{
-		Temp.position = Vector3(Position.x, Position.y + 10.5f, Position.z);
-		Temp.rotation = Vector3(Rotation.x, Rotation.y, Rotation.z);
-		Temp.scale = Vector3(5.0f, 0.5f, 5.0f);
-		Temp.ColourR = Red;
-		Temp.ColourG = Green;
-		Temp.ColourB = Blue;
-		objRoof.Setup(Temp);
-	}
-	if (Floor == true)
-	{
-		Temp.position = Vector3(Position.x, Position.y, Position.z);
-		Temp.rotation = Vector3(Rotation.x, Rotation.y, Rotation.z);
-		Temp.scale = Vector3(5.0f, 0.5f, 5.0f);
-		Temp.ColourR = Red;
-		Temp.ColourG = Green;
-		Temp.ColourB = Blue;
-		objFloor.Setup(Temp);
-	}
 	bool TargetSpawned = false;
 	int RandomNumber = rand() % 100;
 	int TimesRan = 0;
-
 	if (RandomNumber <= targetchance)
 	{
 		while (TargetSpawned == false)
@@ -247,46 +206,11 @@ void Boundaries::Setup(BoundariesInit Init)
 	{
 
 	}
-
-
-	if (BackWall == true)
-	{
-		objBackWall.MinExtent = VectorSub(objBackWall.Position, Vector3(0.5, 5, 5));
-		objBackWall.MaxExtent = VectorAdd(objBackWall.Position, Vector3(0.5, 5, 5));
-
-
-	}
-	if (FrontWall == true)
-	{
-		objFrontWall.MinExtent = VectorSub(objFrontWall.Position, Vector3(0.5, 5, 5));
-		objFrontWall.MaxExtent = VectorAdd(objFrontWall.Position, Vector3(0.5, 5, 5));
-
-	}
-	if (LeftWall == true)
-	{
-		objLeftWall.MinExtent = VectorSub(objLeftWall.Position, Vector3(5.0f, 5.0f, 0.5f));
-		objLeftWall.MaxExtent = VectorAdd(objLeftWall.Position, Vector3(5.0f, 5.0f, 0.5f));
-	}
-	if (RightWall == true)
-	{
-		objRightWall.MinExtent = VectorSub(objRightWall.Position, Vector3(5.0f, 5.0f, 0.5f));
-		objRightWall.MaxExtent = VectorAdd(objRightWall.Position, Vector3(5.0f, 5.0f, 0.5f));
-	}
-	if (Roof == true)
-	{
-		objRoof.MinExtent = VectorSub(objRoof.Position, Vector3(5.0f, 0.5f, 5.0f));
-		objRoof.MaxExtent = VectorAdd(objRoof.Position, Vector3(5.0f, 0.5f, 5.0f));
-	}
-	if (Floor == true)
-	{
-		objFloor.MinExtent = VectorSub(objFloor.Position, Vector3(5.0f, 0.5f, 5.0f));
-		objFloor.MaxExtent = VectorAdd(objFloor.Position, Vector3(5.0f, 0.5f, 5.0f));
-	}
-
 }
-	
 
-void Boundaries::Setup(GameObjectInit Init) {
+void Room::Setup(GameObjectInit Init)
+{
+
 	Position = Init.position;
 	Red = Init.ColourR;
 	Blue = Init.ColourB;
@@ -294,20 +218,18 @@ void Boundaries::Setup(GameObjectInit Init) {
 	DrawTexture = Init.DrawTexture;
 	Rotation = Init.rotation;
 	Scale = Init.scale;
+
 }
 
-
-
-void Boundaries::Update()
+void Room::Update()
 {
-
 	if (BackWall == true)
 	{
 		objBackWall.Update();
 		objBackWall.MinExtent = VectorSub(objBackWall.Position, Vector3(0.5, 5, 5));
 		objBackWall.MaxExtent = VectorAdd(objBackWall.Position, Vector3(0.5, 5, 5));
 
-		
+
 	}
 	if (FrontWall == true)
 	{
@@ -349,6 +271,8 @@ void Boundaries::Update()
 		objTarget.Update();
 	}
 }
-Boundaries::~Boundaries()
+
+
+Room::~Room()
 {
 }

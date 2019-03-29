@@ -16,6 +16,7 @@
 #include "Player.h"
 #include "Corridor.h"
 #include "StopWatch.h"
+#include "Room.h"
 /*
 https://github.com/Pindrought/DirectX-11-Engine-VS2017/blob/Tutorial_18/DirectX%2011%20Engine%20VS2017/DirectX%2011%20Engine%20VS2017/Graphics/Graphics.cpp
 
@@ -23,19 +24,22 @@ https://github.com/Pindrought/DirectX-11-Engine-VS2017/blob/Tutorial_18/DirectX%
 
 */
 
-float Height, Width;
-GameObject Camera;
-GameObject FocusObject;
-Boundaries StartBlock, EndBlock;
-Player objPlayer;
-Corridor objLevel1Corridor[6];
-bool level1 = true, Debug = false, setup = true;
-int CurrentFrameRate, FPS;
-float LevelTime;
-float TotalTargets;
-float TargetsLeft;
+float Height, Width; // Height And Width Values for viewport
+GameObject Camera; //Game Camera 
+GameObject FocusObject;  //Object that Camera Focuses on
+Boundaries StartBlock, EndBlock; // Start And End Block For Level generation
+Player objPlayer; //the Player 
+Corridor objLevel1Corridor[6]; //6 Corridors
+Room objRoom; // 1 Room
+bool setup = true; //Uses to set up levels
+int CurrentFrameRate, FPS; //FPS is the frame rate per secons
+float LevelTime; //Time Taken to complete a level
+float TotalTargets; //Total Number OF Targets in game world
+float TargetsLeft; //Number of targets left
 float TargetsKilled;
 float PercentageKilled;
+double Timer;
+double DeltaTime = 0; 
 XMVECTOR Eye, At, Up;
 Stopwatch Frametimer;
 Stopwatch Leveltimer;
@@ -682,6 +686,7 @@ HRESULT InitDevice()
 	DevCon->UpdateSubresource(g_pCBChangeOnResize, 0, nullptr, &cbChangesOnResize, 0, 0);
 	return S_OK;
 }
+
 //--------------------------------------------------------------------------------------
 // Clean up the objects we've created
 //--------------------------------------------------------------------------------------
@@ -718,7 +723,7 @@ void CleanupDevice()
 //--------------------------------------------------------------------------------------
 // Called every time the application receives a message
 //--------------------------------------------------------------------------------------
-bool KeycodeQ, KeycodeE, KeycodeW, KeycodeS, KeycodeA, KeycodeD, KeycodeX, KeycodeSpace, KeycodeShift, KeycodeLControl, KeycodeLeft, KeycodeRight, KeycodeUp, KeycodeDown, KeycodePlus, KeycodeMinus, KeycodeF;
+bool KeycodeQ, KeycodeE, KeycodeW, KeycodeS, KeycodeA, KeycodeD, KeycodeX, KeycodeSpace, KeycodeShift, KeycodeLControl, KeycodeLeft, KeycodeRight, KeycodeUp, KeycodeDown, KeycodePlus, KeycodeMinus, KeycodeF; //Creating Keycode Bools
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	PAINTSTRUCT ps;
@@ -738,6 +743,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 		// Note that this tutorial does not handle resizing (WM_SIZE) requests,
 		// so we created the window without the resize border.
+
+		/*CHECKING AGAINST WPARAM AND SETTING VALUES TO TRUE OR FALSE BASED ON KEYPRESSES*/
 	case WM_KEYDOWN:
 		switch (wParam)
 		{
@@ -893,93 +900,48 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	return 0;
 }
-// Setup our lighting parameters
-
-XMFLOAT4 vLightDirs =
-{
-	XMFLOAT4(Camera.Position.x, Camera.Position.y, Camera.Position.z, 1.0f),
-};
-
-XMFLOAT4 vLightColors =
-{
-	XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f)
-};
-
-//void GameObject::Draw()
-//{
-//	g_View = XMMatrixLookAtLH(Eye, At, Up);
-//	XMMATRIX DrawMatrice;
-//	XMMATRIX PositionMatrix;
-//
-//	CBChangesEveryFrame DrawBuffer;
-//	g_vMeshColor.x = Red;
-//	g_vMeshColor.y = Green;
-//	g_vMeshColor.z = Blue;
-//	PositionMatrix = XMMatrixTranslation(Position.x,
-//		Position.y,
-//		Position.z);
-//	XMMATRIX RotationMatrix;
-//	float X, Y, Z;
-//	X = Rotation.x;
-//	Y = Rotation.y;
-//	Z = Rotation.z;
-//
-//	RotationMatrix = Matrix::CreateFromYawPitchRoll(X, Y, Z);
-//	XMMATRIX ScaleMatrix = XMMatrixScaling(Scale.x,
-//		Scale.y,
-//		Scale.z);
-//
-//
-//	// Setup our lighting parameters
-//
-//	DrawMatrice = ScaleMatrix * RotationMatrix * PositionMatrix;
-//	DrawBuffer.mWorld = XMMatrixTranspose(DrawMatrice);
-//	DrawBuffer.vMeshColor = g_vMeshColor;
-//	DrawBuffer.vLightDir = vLightDirs;
-//	DrawBuffer.vLightColor = vLightColors;
-//
-//	cbNeverChanges.mView = XMMatrixTranspose(g_View);
-//	DevCon->UpdateSubresource(g_pCBChangesEveryFrame, 0, nullptr, &DrawBuffer, 0, 0);
-//	DevCon->UpdateSubresource(g_pCBNeverChanges, 0, nullptr, &cbNeverChanges, 0, 0);
-//	DevCon->VSSetShader(g_pVertexShader, nullptr, 0);
-//	DevCon->VSSetConstantBuffers(0, 1, &g_pCBNeverChanges);
-//	DevCon->VSSetConstantBuffers(1, 1, &g_pCBChangeOnResize);
-//	DevCon->VSSetConstantBuffers(2, 1, &g_pCBChangesEveryFrame);
-//	DevCon->PSSetShader(g_pPixelShader, nullptr, 0);
-//	DevCon->PSSetConstantBuffers(2, 1, &g_pCBChangesEveryFrame);
-//	DevCon->PSSetShaderResources(0, 1, &DrawTexture);
-//	DevCon->PSSetSamplers(0, 1, &g_pSamplerLinear);
-//	DevCon->DrawIndexed(36, 0, 0);
-//}
-CBLightingBuffer LightBuffer;
 void GameObject::Draw()
 {
+
+	//Set Camera view
 	g_View = XMMatrixLookAtLH(Eye, At, Up);
+
+	//Create Matrices
 	XMMATRIX DrawMatrice;
 	XMMATRIX PositionMatrix;
 
+	//Create Draw Buffer
 	CBChangesEveryFrame DrawBuffer;
 
+	//Create Light Buffer
+	CBLightingBuffer LightBuffer;
+	
+	//Set Mesh Colours
 	g_vMeshColor.x = Red;
 	g_vMeshColor.y = Green;
 	g_vMeshColor.z = Blue;
+
+	//Set Position Matrix
 	PositionMatrix = XMMatrixTranslation(Position.x,
 		Position.y,
 		Position.z);
-	XMMATRIX RotationMatrix;
+	
+	
+	//Create Rotation Matrix
+XMMATRIX RotationMatrix;
 	float X, Y, Z;
 	X = Rotation.x;
 	Y = Rotation.y;
 	Z = Rotation.z;
-
 	RotationMatrix = Matrix::CreateFromYawPitchRoll(X, Y, Z);
 	XMMATRIX ScaleMatrix = XMMatrixScaling(Scale.x,
 		Scale.y,
 		Scale.z);
 
 
-	// Setup our lighting parameters
 
+
+//Create LightBuffer Paramters
 	LightBuffer.Ignore = XMMatrixIdentity();
 	LightBuffer.globalAmbient = XMFLOAT3(0, 0, 0);
 	LightBuffer.lightColor = XMFLOAT3(0, 1, 0);
@@ -994,27 +956,50 @@ void GameObject::Draw()
 	LightBuffer.Ks = XMFLOAT3(1, 1, 1);
 	LightBuffer.shininess = 1;
 
+	//Set Draw Matrice using TRS
 	DrawMatrice = ScaleMatrix * RotationMatrix * PositionMatrix;
+
+	//Set Draw Buffer mWorld
 	DrawBuffer.mWorld = XMMatrixTranspose(DrawMatrice);
+
+	//Set View (Camera)
 	cbNeverChanges.mView = XMMatrixTranspose(g_View);
+
+	//Updating Buffers
 	DevCon->UpdateSubresource(g_pCBChangesEveryFrame, 0, nullptr, &DrawBuffer, 0, 0);
 	DevCon->UpdateSubresource(g_pCBNeverChanges, 0, nullptr, &cbNeverChanges, 0, 0);
 	DevCon->UpdateSubresource(g_pCBLightBuffer, 0, nullptr, &LightBuffer, 0, 0);
+
+	//Set Vertex Shader
 	DevCon->VSSetShader(g_pVertexShader, nullptr, 0);
+
+	//Set Vertex Shader Buffers
 	DevCon->VSSetConstantBuffers(0, 1, &g_pCBNeverChanges);
 	DevCon->VSSetConstantBuffers(1, 1, &g_pCBChangeOnResize);
 	DevCon->VSSetConstantBuffers(2, 1, &g_pCBChangesEveryFrame);
 	DevCon->VSSetConstantBuffers(3, 1, &g_pCBLightBuffer);
+	
+	//Set Pixel Shader 
 	DevCon->PSSetShader(g_pPixelShader, nullptr, 0);
+
+	//Set Pixel Shader Constant Buffer
 	DevCon->PSSetConstantBuffers(2, 1, &g_pCBChangesEveryFrame);
+
+	//Set Texture
 	DevCon->PSSetShaderResources(0, 1, &DrawTexture);
+
+	//Set Sampler
 	DevCon->PSSetSamplers(0, 1, &g_pSamplerLinear);
+
+	//Draw Cube
 	DevCon->DrawIndexed(36, 0, 0);
 }
-
+bool EndLevel = false;
 void Level1()
 {
-	//Keyboard checks
+	/*Keyboard checks*/
+	
+	//If W is being pressed set player.W to true
 	if (KeycodeW == true)
 	{
 		objPlayer.W = true;
@@ -1024,7 +1009,7 @@ void Level1()
 		objPlayer.W = false;
 	}
 
-
+	//If A is being pressed set player.A to true
 	if (KeycodeA == true)
 	{
 		objPlayer.A = true;
@@ -1034,7 +1019,8 @@ void Level1()
 	{
 		objPlayer.A = false;
 	}
-
+	
+	//If S is being pressed set player.S to true
 	if (KeycodeS == true)
 	{
 		objPlayer.S = true;
@@ -1044,7 +1030,7 @@ void Level1()
 		objPlayer.S = false;
 	}
 
-
+	//If D is being pressed set player.D to true
 	if (KeycodeD == true)
 	{
 		objPlayer.D = true;
@@ -1054,7 +1040,7 @@ void Level1()
 		objPlayer.D = false;
 	}
 
-
+	//If UP is being pressed set player.UP to true
 	if (KeycodeUp == true)
 	{
 		objPlayer.UP = true;
@@ -1064,7 +1050,7 @@ void Level1()
 		objPlayer.UP = false;
 	}
 
-
+	//If RIGHT is being pressed set player.RIGHT to true
 	if (KeycodeRight == true)
 
 	{
@@ -1075,7 +1061,7 @@ void Level1()
 		objPlayer.RIGHT = false;
 	}
 
-
+	//If DOWN is being pressed set player.DOWN to true
 	if (KeycodeDown == true)
 
 	{
@@ -1086,7 +1072,7 @@ void Level1()
 		objPlayer.DOWN = false;
 	}
 
-
+	//If LEFT is being pressed set player.LEFT to true
 	if (KeycodeLeft == true)
 
 	{
@@ -1098,7 +1084,7 @@ void Level1()
 	}
 
 
-
+	//If PLUS is being pressed set player.PLUS to true
 	if (KeycodePlus == true)
 	{
 		objPlayer.PLUS = true;
@@ -1109,7 +1095,7 @@ void Level1()
 	}
 
 
-
+	//If MINUS is being pressed set player.MINUS to true
 	if (KeycodeMinus == true)
 	{
 		objPlayer.MINUS = true;
@@ -1119,7 +1105,7 @@ void Level1()
 		objPlayer.MINUS = false;
 	}
 
-
+	//If F is being pressed set player.F to true
 	if (KeycodeF == true)
 	{
 		objPlayer.F = true;
@@ -1129,7 +1115,7 @@ void Level1()
 		objPlayer.F = false;
 	}
 
-
+	//If Q is being pressed set player.Q to true
 	if (KeycodeQ == true)
 	{
 		objPlayer.Q = true;
@@ -1139,7 +1125,7 @@ void Level1()
 		objPlayer.Q = false;
 	}
 
-
+	//If E is being pressed set player.E to true
 	if (KeycodeE == true)
 	{
 		objPlayer.E = true;
@@ -1149,6 +1135,7 @@ void Level1()
 		objPlayer.E = false;
 	}
 
+	//If SPACE is being pressed set player.SPACE to true
 	if (KeycodeSpace == true)
 	{
 		objPlayer.SPACE = true;
@@ -1159,7 +1146,7 @@ void Level1()
 	}
 
 
-
+	//If SHIFT is being pressed set player.SHIFT to true
 	if (KeycodeShift == true)
 	{
 		objPlayer.SHIFT = true;
@@ -1169,7 +1156,7 @@ void Level1()
 	}
 
 
-
+	//If LControl is being pressed set player.CONTROL to true
 	if (KeycodeLControl == true)
 	{
 		objPlayer.CONTROL = true;
@@ -1178,7 +1165,7 @@ void Level1()
 		objPlayer.CONTROL = false;
 	}
 
-
+	//If X is being pressed set player.X to true
 	if (KeycodeX == true)
 	{
 		objPlayer.X = true;
@@ -1189,12 +1176,11 @@ void Level1()
 	}
 
 
-	//Setup
+	//Level Setup
 	if (setup == true)
 	{
-
+		//Initialsing Start Block
 		BoundariesInit Start;
-
 		Start.Position = Vector3(0, 0, 0);
 		Start.Rotation;
 		Start.Scale;
@@ -1209,12 +1195,12 @@ void Level1()
 		Start.backwall = true;
 		Start.roof = true;
 		Start.floor = true;
-		Start.DrawTexture = MarbleTexture;
+		Start.DrawTexture = BlankTexture;
 		Start.TurretTexture = TargetTexture;
 		Start.TargetTexture = TargetTexture;
 		StartBlock.Setup(Start);
 
-
+		//Initialising Player
 		playerInit player;
 		player.Position = StartBlock.Position;
 		player.Position.y += 5;
@@ -1227,9 +1213,9 @@ void Level1()
 		player.Shots = 0;
 		player.DrawTexture = BlankTexture;
 		objPlayer.Setup(player);
-
+		
+		//Initialising Corridor 0
 		corridorsInit Corridor1;
-
 		Corridor1.Position = StartBlock.Position;
 		Corridor1.Position.x += 10;
 		Corridor1.Rotation;
@@ -1237,7 +1223,7 @@ void Level1()
 		Corridor1.colourR;
 		Corridor1.colourG;
 		Corridor1.colourB;
-		Corridor1.floorLength = rand()%50+2;
+		Corridor1.floorLength = rand()%50+2;//Randomnises Corridor Length
 		Corridor1.CorridorDirection = "Forward";
 		Corridor1.DrawTexture = MarbleTexture;
 		Corridor1.TurretTexture = TargetTexture;
@@ -1261,6 +1247,7 @@ void Level1()
 		TotalTargets = 0;
 
 
+		//Initialising Corridor 1
 		int Length = objLevel1Corridor[0].FloorLength;
 		Corridor1.Position = objLevel1Corridor[0].objFloors[Length - 1].Position;
 		Corridor1.Position.x += 10;
@@ -1269,7 +1256,7 @@ void Level1()
 		Corridor1.colourR;
 		Corridor1.colourG;
 		Corridor1.colourB;
-		Corridor1.floorLength = rand() % 50 +2;
+		Corridor1.floorLength = rand() % 50 +2;//Randomnises Corridor Length
 		Corridor1.CorridorDirection = "Right";
 		Corridor1.DrawTexture = Wall1Texture;
 		Corridor1.TurretTexture = TargetTexture;
@@ -1289,6 +1276,7 @@ void Level1()
 		objLevel1Corridor[1].Setup(Corridor1);
 
 
+		//Initialising Corridor 2
 		 Length = objLevel1Corridor[1].FloorLength;
 		Corridor1.Position = objLevel1Corridor[1].objFloors[Length - 1].Position;
 		Corridor1.Position.x += 0;
@@ -1297,7 +1285,7 @@ void Level1()
 		Corridor1.colourR;
 		Corridor1.colourG;
 		Corridor1.colourB;
-		Corridor1.floorLength = rand() % 50 + 2;
+		Corridor1.floorLength = rand() % 50 + 2;//Randomnises Corridor Length
 		Corridor1.CorridorDirection = "Up";
 		Corridor1.DrawTexture = Wall2Texture;
 		Corridor1.TurretTexture = TargetTexture;
@@ -1315,7 +1303,8 @@ void Level1()
 		Corridor1.LastBlock.roof = true;
 		Corridor1.LastBlock.floor = false;
 		objLevel1Corridor[2].Setup(Corridor1);
-
+	
+		//Initialising Corridor 3
 		Length = objLevel1Corridor[2].FloorLength;
 		Corridor1.Position = objLevel1Corridor[2].objFloors[Length - 1].Position;
 		Corridor1.Position.x -= 10;
@@ -1324,7 +1313,7 @@ void Level1()
 		Corridor1.colourR;
 		Corridor1.colourG;
 		Corridor1.colourB;
-		Corridor1.floorLength = rand() % 50 + 2;
+		Corridor1.floorLength = rand() % 50 + 2; //Randomnises Corridor Length
 		Corridor1.CorridorDirection = "Backward";
 		Corridor1.DrawTexture = Wall3Texture;
 		Corridor1.TurretTexture = TargetTexture;
@@ -1344,89 +1333,167 @@ void Level1()
 		objLevel1Corridor[3].Setup(Corridor1);
 
 
-
+		//Initialising Corridor 4
 		Length = objLevel1Corridor[3].FloorLength;
 		Corridor1.Position = objLevel1Corridor[3].objFloors[Length - 1].Position;
-		Corridor1.Position.x -=0;
+		Corridor1.Position.z -=10;
 		Corridor1.Rotation;
 		Corridor1.Scale;
 		Corridor1.colourR;
 		Corridor1.colourG;
 		Corridor1.colourB;
-		Corridor1.floorLength = rand() % 50 + 2;
+		Corridor1.floorLength = rand() % 50 + 2;//Randomnises Corridor Length
 		Corridor1.CorridorDirection = "Right";
 		Corridor1.DrawTexture = BrickTexture;
 		Corridor1.TurretTexture = TargetTexture;
 		Corridor1.TargetTexture = TargetTexture;
 		Corridor1.FirstBlock.leftWall = false;
 		Corridor1.FirstBlock.rightWall = false;
-		Corridor1.FirstBlock.frontwall = false;
-		Corridor1.FirstBlock.backwall = false;
-		Corridor1.FirstBlock.roof = false;
-		Corridor1.FirstBlock.floor = false;
+		Corridor1.FirstBlock.frontwall = true;
+		Corridor1.FirstBlock.backwall = true;
+		Corridor1.FirstBlock.roof = true;
+		Corridor1.FirstBlock.floor = true;
 		Corridor1.LastBlock.leftWall = false;
-		Corridor1.LastBlock.rightWall = false;
-		Corridor1.LastBlock.frontwall = false;
-		Corridor1.LastBlock.backwall = false;
-		Corridor1.LastBlock.roof = false;
+		Corridor1.LastBlock.rightWall = true;
+		Corridor1.LastBlock.frontwall = true;
+		Corridor1.LastBlock.backwall = true;
+		Corridor1.LastBlock.roof = true;
 		Corridor1.LastBlock.floor = false;
 		objLevel1Corridor[4].Setup(Corridor1);
 
 
+
+		//Initialising Corridor 5
+		Length = objLevel1Corridor[4].FloorLength;
+		Corridor1.Position = objLevel1Corridor[4].objFloors[Length - 1].Position;
+		Corridor1.Position.y -= 10;
+		Corridor1.Rotation;
+		Corridor1.Scale;
+		Corridor1.colourR;
+		Corridor1.colourG;
+		Corridor1.colourB;
+		Corridor1.floorLength = rand() % 50 + 2; //Randomnises Corridor Length
+		Corridor1.CorridorDirection = "Down";
+		Corridor1.DrawTexture = MarbleTexture;
+		Corridor1.TurretTexture = TargetTexture;
+		Corridor1.TargetTexture = TargetTexture;
+		Corridor1.FirstBlock.leftWall = true;
+		Corridor1.FirstBlock.rightWall = true;
+		Corridor1.FirstBlock.frontwall = true;
+		Corridor1.FirstBlock.backwall = true;
+		Corridor1.FirstBlock.roof = false;
+		Corridor1.FirstBlock.floor = false;
+		Corridor1.LastBlock.leftWall = true;
+		Corridor1.LastBlock.rightWall = true;
+		Corridor1.LastBlock.frontwall = true;
+		Corridor1.LastBlock.backwall = true;
+		Corridor1.LastBlock.roof = false;
+		Corridor1.LastBlock.floor = false;
+		objLevel1Corridor[5].Setup(Corridor1);
+
+
+		//Creates End Block 
+		BoundariesInit End;
+		Length = objLevel1Corridor[5].FloorLength;
+		End.Position = objLevel1Corridor[5].objFloors[Length - 1].Position;
+		End.Position.y -= 10;
+		End.Rotation;
+		End.Scale;
+		End.colourR=0;
+		End.colourG =1;
+		End.colourB=0;
+		End.targetchance = 0;
+		End.turretchance = 0;
+		End.leftWall = true;
+		End.rightWall = true;
+		End.frontwall = true;
+		End.backwall = true;
+		End.roof = false;
+		End.floor = true;
+		End.DrawTexture = BlankTexture;
+		End.TurretTexture = TargetTexture;
+		End.TargetTexture = TargetTexture;
+		EndBlock.Setup(End);
+
+
+
+		//Checks how many targets are alive in game world at start up
 		for (int c = 0; c < 6; c++)
 		{
 			for (int F = 0; F < objLevel1Corridor[c].FloorLength; F++)
 			{
+
+				//If taget is alive add one to total targets
 				if (objLevel1Corridor[c].objFloors[F].TARGET == true)
-				{
+				{	
+				
+					//Adds one to total Targets
 					TotalTargets++;
 				}
 			}
 		}
-		TargetsLeft = TotalTargets;
-
 	}
+
+
+	//Resets Targets LEeft
 	TargetsLeft = 0;
+
+	//Checks how many targets alive in game world
 	for (int c = 0; c < 6; c++)
 	{
 		for (int F = 0; F < objLevel1Corridor[c].FloorLength; F++)
 		{
+			//if the targets is alive add one to targets left
 			if (objLevel1Corridor[c].objFloors[F].TARGET == true)
 			{
+				//Adding one to targets left
 				TargetsLeft++;
 			}
 		}
 	}
-	//Collsion Checks
+
+	//Bullets VS Targets Collsion Checks 
 	for (int C = 0; C < 6; C++)
 	{
 		for (int B = 0; B < 50; B++)
 		{
-
+			//Checking for Gun Left
 			if (objPlayer.objGunLeft.objbulletlist[B].Alive == true)
 			{
 				for (int F = 0; F < objLevel1Corridor[C].FloorLength; F++)
 				{
+					
+					//Checking Target is alive
 					if (objLevel1Corridor[C].objFloors[F].objTarget.Health >= 0)
 					{
+					
+					//Checking for colliision	
 						if (CollisionBox::Intersects(objPlayer.objGunLeft.objbulletlist[B], objLevel1Corridor[C].objFloors[F].objTarget))
 						{
-							TargetsLeft--;
+							
+							//Killing Target
 							objLevel1Corridor[C].objFloors[F].objTarget.Health = 0;
 						}
 					}
 
 				}
 			}
+			
+			//Checking for gun right 
 			if (objPlayer.objGunRight.objbulletlist[B].Alive == true)
 			{
 				for (int F = 0; F < objLevel1Corridor[C].FloorLength; F++)
 				{
+					
+					//Checking Target is alive
 					if (objLevel1Corridor[C].objFloors[F].objTarget.Health >= 0)
 					{
+						
+						//Checking for collision
 						if (CollisionBox::Intersects(objPlayer.objGunRight.objbulletlist[B], objLevel1Corridor[C].objFloors[F].objTarget))
 						{
-							TargetsLeft--;
+
+							//KillingTarget
 							objLevel1Corridor[C].objFloors[F].objTarget.Health = 0;
 						}
 					}
@@ -1435,118 +1502,269 @@ void Level1()
 		}
 	}
 
+	
+	
+	/*Start Block Collision Check, to stop the player going out of the world*/
+	
+	//Checking For LeftWall
 	if (StartBlock.LeftWall == true)
 	{
+
+		//Checking for collison
 		if (CollisionBox::Intersects(objPlayer, StartBlock.objLeftWall))
 		{
+
+			//Kills the player
 			objPlayer.Health = 0;
 		}
 	}
+
+	//Checking For RightWall
 	if (StartBlock.RightWall == true)
 	{
+
+		//Checking for collison
 		if (CollisionBox::Intersects(objPlayer, StartBlock.objRightWall))
 		{
+
+			//Kills the player
 			 objPlayer.Health = 0;
 		}
 	}
+
+	//Checking For FrontWall
 	if (StartBlock.FrontWall == true)
 	{
+
+		//Checking for collison
 		if (CollisionBox::Intersects(objPlayer, StartBlock.objFrontWall))
 		{
+
+			//Kills the player
 			 objPlayer.Health = 0;
 		}
 	}
+
+	//Checking For BackWall
 	if (StartBlock.BackWall == true)
 	{
+
+		//Checking for collison
 		if (CollisionBox::Intersects(objPlayer, StartBlock.objBackWall))
 		{
+
+			//Kills the player
 			 objPlayer.Health = 0;
 		}
 	}
+
+	//Checking For Roof
 	if (StartBlock.Roof == true)
 	{
+
+		//Checking for collison
 		if (CollisionBox::Intersects(objPlayer, StartBlock.objRoof))
 		{
+
+			//Kills the player
 			 objPlayer.Health = 0;
 
 		}
 	}
+
+	//Checking For Floor
 	if (StartBlock.Floor == true)
 	{
+
+		//Checking for collison
 		if (CollisionBox::Intersects(objPlayer, StartBlock.objFloor))
 		{
+
+			//Kills the player
 			objPlayer.Health = 0;
 		}
 	}
 
+	/*End Block Collision Check, When the player collides with any part of the end block the game ends*/
+	
+	//Checking For Left Wall
+	if (EndBlock.LeftWall == true)
+	{
+
+		//Checking for collison
+		if (CollisionBox::Intersects(objPlayer, EndBlock.objLeftWall))
+		{
+			//Goes to end screen
+			EndLevel = true;
+		}
+	}
+
+	//Checking For Right Wall
+	if (EndBlock.RightWall == true)
+	{
+
+		//Checking for collison
+		if (CollisionBox::Intersects(objPlayer, EndBlock.objRightWall))
+		{
+			//Goes to end screen
+			EndLevel = true;
+		}
+	}
+
+	//Checking For Front Wall
+	if (EndBlock.FrontWall == true)
+	{
+
+		//Checking for collison
+		if (CollisionBox::Intersects(objPlayer, EndBlock.objFrontWall))
+		{
+			//Goes to end screen
+			EndLevel = true;
+		}
+	}
+
+	//Checking For Back Wall
+	if (EndBlock.BackWall == true)
+	{
+
+		//Checking for collison
+		if (CollisionBox::Intersects(objPlayer, EndBlock.objBackWall))
+		{
+			//Goes to end screen
+			EndLevel = true;
+		}
+	}
+
+	//Checking For Roof
+	if (EndBlock.Roof == true)
+	{
+
+		//Checking for collison
+		if (CollisionBox::Intersects(objPlayer, EndBlock.objRoof))
+		{
+			//Goes to end screen
+			EndLevel = true;
+
+		}
+	}
+
+	//Checking For Floor
+	if (EndBlock.Floor == true)
+	{
+		
+		//Checking for collison
+		if (CollisionBox::Intersects(objPlayer, EndBlock.objFloor))
+		{
+			//Goes to end screen
+			EndLevel = true;
+		}
+	}
+
+
+
+	//Player VS Boundaries Collsion Check for all corridors
 	for (int C = 0; C < 6; C++)
 	{
+		//Goes through each corridor with their floor length, Max floor length is 50
 		for (int F = 0; F < objLevel1Corridor[C].FloorLength; F++)
 		{
+			/*Checks are used to make sure the intersect funciton is not being ran on walls that do not exist*/
+
+			//Backwall Check
 			if (objLevel1Corridor[C].objFloors[F].BackWall == true)
 			{
+
+				//Checking for a Collison
 				if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objBackWall))
 				{
+
+					//Killing the player if their was a collison
 					objPlayer.Health = 0;
-					}
-
 				}
 
-				if (objLevel1Corridor[C].objFloors[F].FrontWall == true)
+			}
+
+			//Frontwall Check
+			if (objLevel1Corridor[C].objFloors[F].FrontWall == true)
+			{
+
+				//Checking for a Collison
+				if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objFrontWall))
 				{
-					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objFrontWall))
-					{
-						objPlayer.Health = 0;
-					}
+
+					//Killing the player if their was a collison
+					objPlayer.Health = 0;
 				}
+			}
 
-				if (objLevel1Corridor[C].objFloors[F].LeftWall == true)
+			//Leftwall check
+			if (objLevel1Corridor[C].objFloors[F].LeftWall == true)
+			{
+
+				//Checking for a Collison
+				if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objLeftWall))
 				{
-					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objLeftWall))
-					{
-						 objPlayer.Health = 0;
-					}
 
-
-
-				}
-
-				if (objLevel1Corridor[C].objFloors[F].RightWall == true)
-				{
-					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objRightWall))
-					{
-						objPlayer.Health = 0;
-					}
-
-				}
-
-				if (objLevel1Corridor[C].objFloors[F].Roof == true)
-				{
-					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objRoof))
-					{
-						objPlayer.Health = 0;
-					}
-
-				}
-
-				if (objLevel1Corridor[C].objFloors[F].Floor == true)
-				{
-					if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objFloor))
-					{
-						objPlayer.Health = 0;
-					}
-
+					//Killing the player if their was a collison
+					objPlayer.Health = 0;
 				}
 
 
 
 			}
-			//Collsion Checks
+
+			//Right Wall check
+			if (objLevel1Corridor[C].objFloors[F].RightWall == true)
+			{
+				
+				//Checking for a Collison
+				if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objRightWall))
+				{
+
+					//Killing the player if their was a collison
+					objPlayer.Health = 0;
+				}
+
+			}
+
+			//Roof Check
+			if (objLevel1Corridor[C].objFloors[F].Roof == true)
+			{		
+				
+				//Checking for a Collison
+				if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objRoof))
+				{
+
+					//Killing the player if their was a collison
+					objPlayer.Health = 0;
+				}
+
+			}
+
+			//Floor Check
+			if (objLevel1Corridor[C].objFloors[F].Floor == true)
+			{
+				
+				//Checking for a Collison
+				if (CollisionBox::Intersects(objPlayer, objLevel1Corridor[C].objFloors[F].objFloor))
+				{
+					
+					//Killing the player if their was a collison
+					objPlayer.Health = 0;
+				}
+
+			}
+
+
+
+			}
 
 		}
-
+	
+	//Update the Player before the camera as the camera uses the players variables 
 	objPlayer.Update();
-	//Camera
+	
+	//Set Camera Eye, At and Up
 	Camera.Position.x = -objPlayer.ForwardDirection.x;
 	Camera.Position.y = -objPlayer.ForwardDirection.y;
 	Camera.Position.z = -objPlayer.ForwardDirection.z;
@@ -1557,34 +1775,43 @@ void Level1()
 	Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 	g_View = XMMatrixLookAtLH(Eye, At, Up);
 	cbNeverChanges.mView = XMMatrixTranspose(g_View);
-	//Corridors draw them selves and require to be updated after 
+ 
+	//Run Corridor Updates
 	objLevel1Corridor[0].Update();
 	objLevel1Corridor[1].Update();
 	objLevel1Corridor[2].Update();
 	objLevel1Corridor[3].Update();
 	objLevel1Corridor[4].Update();
+	objLevel1Corridor[5].Update();
+	
+	//Update Start Block
 	StartBlock.Update();
+	
+	//Update End Block
 	EndBlock.Update();
+
+	//If the player is dead restart the level
 	if (objPlayer.Health == 0)
 	{
 		setup = true;
 	}
 }
 
-double Timer;
-double DeltaTime = 0;
-float t = 0;
+/*MAIN RENDER LOOP*/
 void Render()
 {
-	TargetsKilled = TotalTargets - TargetsLeft;
-	TargetsLeft = TotalTargets - TargetsKilled;
-	//Create Stop Watch
+
+	//Create Stop Watch for delta time and starts it
 	Stopwatch FrameTime;
 	FrameTime.Start();
 	UINT stride = sizeof(SimpleVertex);
 	UINT offset = 0;
-	level1 = false;
-	Debug = true;
+
+//Calculates Targets Killed
+	TargetsKilled = TotalTargets - TargetsLeft; 
+
+	//Calculates TargetsLeft
+	TargetsLeft = TotalTargets - TargetsKilled;
 	//Create ViewPort
 	D3D11_VIEWPORT vp;
 	vp.Width = Width;
@@ -1593,110 +1820,199 @@ void Render()
 	vp.MaxDepth = 1.0f;
 	vp.TopLeftX = 0;
 	vp.TopLeftY = 0;
-	//Reseting States//
+	
+	//Reseting States
 	//Clear Screen
 	DevCon->ClearRenderTargetView(RenderTargetView, Colors::MidnightBlue);
 	DevCon->ClearDepthStencilView(depthStencelView, D3D11_CLEAR_STENCIL || D3D11_CLEAR_DEPTH, 1.0f, 0);
+	
 	//Setting Layout
 	DevCon->IASetInputLayout(g_pVertexLayout);
+
 	//Set Primite Topology
 	DevCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 	//Set Raster
 	DevCon->RSSetState(rasterizerState);
+	
 	//Set Stencil
 	DevCon->OMSetDepthStencilState(depthStencilState, 0);
+	
 	//Set Render Target
 	DevCon->OMSetRenderTargets(1, &RenderTargetView, depthStencelView);
+	
 	//Set View Port
 	DevCon->RSSetViewports(1, &vp);
+	
 	//Set Vertex Buffer
 	DevCon->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
+	
 	//Set Index Buffer
 	DevCon->IASetIndexBuffer(g_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
-	//Set PRojection Matrix
+
+	//Set Projection Matrix
 	g_Projection = XMMatrixPerspectiveFovLH(XM_PIDIV4, Width / Height, 0.01f, 10000.0f);
 	CBChangeOnResize cbChangesOnResize;
 	cbChangesOnResize.mProjection = XMMatrixTranspose(g_Projection);
 	DevCon->UpdateSubresource(g_pCBChangeOnResize, 0, nullptr, &cbChangesOnResize, 0, 0);
-
+	
+	//Set Players Delta Time
 	objPlayer.DeltaTime = DeltaTime;
-	Level1();
-	CurrentFrameRate += 1;
-
-	Timer = Frametimer.ElapsedSeconds();
-
-	if (Timer >= 1)
+	if (EndLevel == false)
 	{
-		FPS = CurrentFrameRate;
-		CurrentFrameRate = 0;
-		Frametimer.Restart();
-		Timer = 0;
+		//Runs Level1 Update Function
+		Level1();
+		//Pluses one per frame
+		CurrentFrameRate += 1;
+		//Set 
+		Timer = Frametimer.ElapsedSeconds();
+		//Frame Per Second Calculation, for every 1 second it will log the current frame rate
+		if (Timer >= 1)
+		{
+			FPS = CurrentFrameRate;
+			CurrentFrameRate = 0;
+			Frametimer.Restart();
+			Timer = 0;
+		}
+		//Combines Frame Rate to text
+		wstring TFPS = std::to_wstring(FPS);
+		wstring TText = L"Frame Rate = ";
+
+		TText += TFPS;
+		const wchar_t *Text = TText.c_str();
+		//Combines Frame Time To TExt
+		DeltaTime = FrameTime.ElapsedSeconds();
+		wstring DET = std::to_wstring(DeltaTime);
+		wstring DText = L"Frame Time = ";
+
+		DText += DET;
+		const wchar_t *Text2 = DText.c_str();
+
+
+		//Combines ShotFired To text
+		wstring SHFI = std::to_wstring(objPlayer.Shots);
+		wstring ShText = L"Shots Fired = ";
+		LevelTime = Leveltimer.ElapsedSeconds();
+		ShText += SHFI;
+		const wchar_t *Text3 = ShText.c_str();
+
+		//Combines LevelTime To text
+		wstring Lev = std::to_wstring(LevelTime);
+		wstring LText = L"Level Time = ";
+		LText += Lev;
+		const wchar_t *Text4 = LText.c_str();
+
+		//Combines Total Targets To Text
+		wstring TT = std::to_wstring(TotalTargets);
+		wstring TTEXT = L"Total Targets = ";
+		TTEXT += TT;
+		const wchar_t * Text5 = TTEXT.c_str();
+
+		//Combines Targets Killed To Text
+		wstring TK = std::to_wstring(TargetsKilled);
+		wstring TKEXT = L"Targets Killed = ";
+		TKEXT += TK;
+		const wchar_t * Text6 = TKEXT.c_str();
+
+
+		//Combines Targets Left to text
+		wstring TL = std::to_wstring(TargetsLeft);
+		wstring TLEXT = L"Targets Left = ";
+		TLEXT += TL;
+		const wchar_t * Text7 = TLEXT.c_str();
+
+
+		//Calculates Percentge Left
+		PercentageKilled = (TargetsLeft / TotalTargets) * 100;
+		//Combines Percentege Left to text
+		wstring TP = std::to_wstring(PercentageKilled);
+		wstring TPEXT = L"Percentage Left = ";
+		TPEXT += TP;
+		const wchar_t * Text8 = TPEXT.c_str();
+
+
+		//Text Draw Stage
+		spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
+		spriteFont = std::make_unique<DirectX::SpriteFont>(Device, L"Text/comic_sans_ms_16.spritefont"); //Setting Font
+		spriteBatch->Begin();
+		spriteFont->DrawString(spriteBatch.get(), L"Storvile Space Corridor Shooter -BY UP814853(Kieran Grist)", XMFLOAT2(0, 0), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text, XMFLOAT2(0, 50), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Rate
+		spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 100), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Time
+																																					 //spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Time
+		spriteFont->DrawString(spriteBatch.get(), Text3, XMFLOAT2(1550, 00), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text4, XMFLOAT2(1550, 50), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text5, XMFLOAT2(1550, 100), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text6, XMFLOAT2(1550, 150), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text7, XMFLOAT2(1550, 200), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text8, XMFLOAT2(1550, 250), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), L"Arrow Keys Move ship \n WASD Rotate Ship \n Space Ship UP \n LControl Ship Down \n F Fire Lasers", XMFLOAT2(0, 750), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteBatch->End();
+		swapChain->Present(0, 0); //Swaps the chian
 	}
-	//Combines Frame Rate to text
-	wstring TFPS = std::to_wstring(FPS);
-	wstring TText = L"Frame Rate = ";
+	else
+	{
+		//Checking if X is pressed so the level can start again
+		if (KeycodeX == true)
+		{
+			setup = true;
+			EndLevel = false;
+		}
+		Leveltimer.Stop();
+	
+		//Combines ShotFired To text
+		wstring SHFI = std::to_wstring(objPlayer.Shots);
+		wstring ShText = L"Shots Fired = ";
+		LevelTime = Leveltimer.ElapsedSeconds();
+		ShText += SHFI;
+		const wchar_t *Text3 = ShText.c_str();
 
-	TText += TFPS;
-	const wchar_t *Text = TText.c_str();
-	//Combines Frame Time To TExt
-	DeltaTime = FrameTime.ElapsedSeconds();
-	wstring DET = std::to_wstring(DeltaTime);
-	wstring DText = L"Frame Time = ";
+		//Combines LevelTime To text
+		wstring Lev = std::to_wstring(LevelTime);
+		wstring LText = L"Level Time = ";
+		LText += Lev;
+		const wchar_t *Text4 = LText.c_str();
 
-	DText += DET;
-	const wchar_t *Text2 = DText.c_str();
+		//Combines Total Targets To Text
+		wstring TT = std::to_wstring(TotalTargets);
+		wstring TTEXT = L"Total Targets = ";
+		TTEXT += TT;
+		const wchar_t * Text5 = TTEXT.c_str();
 
-
-//Combines ShotFired To text
-	wstring SHFI = std::to_wstring(objPlayer.Shots);
-	wstring ShText = L"Shots Fired = ";
-	LevelTime = Leveltimer.ElapsedSeconds();
-	ShText += SHFI;
-	const wchar_t *Text3 = ShText.c_str();
-	//Combines LevelTime To text
-	wstring Lev = std::to_wstring(LevelTime);
-	wstring LText = L"Level Time = ";
-	LText += Lev;
-	const wchar_t *Text4 = LText.c_str();
-
-
-	wstring TT = std::to_wstring(TotalTargets);
-	wstring TTEXT = L"Total Targets = ";
-	TTEXT += TT;
-	const wchar_t * Text5 = TTEXT.c_str();
-	wstring TK = std::to_wstring(TargetsKilled);
-	wstring TKEXT = L"Targets Killed = ";
-	TKEXT += TK;
-	const wchar_t * Text6 = TKEXT.c_str();
-
-	wstring TL = std::to_wstring(TargetsLeft);
-	wstring TLEXT = L"Targets Left = ";
-	TLEXT += TL;
-	const wchar_t * Text7 = TLEXT.c_str();
+		//Combines Targets Killed To Text
+		wstring TK = std::to_wstring(TargetsKilled);
+		wstring TKEXT = L"Targets Killed = ";
+		TKEXT += TK;
+		const wchar_t * Text6 = TKEXT.c_str();
 
 
-
-	PercentageKilled =  (TargetsLeft/TotalTargets   )*100;
-
-	wstring TP = std::to_wstring(PercentageKilled);
-	wstring TPEXT = L"Percentage Left = ";
-	TPEXT += TP;
-	const wchar_t * Text8 = TPEXT.c_str();
+		//Combines Targets Left to text
+		wstring TL = std::to_wstring(TargetsLeft);
+		wstring TLEXT = L"Targets Left = ";
+		TLEXT += TL;
+		const wchar_t * Text7 = TLEXT.c_str();
 
 
-	//Text
-	spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
-	spriteFont = std::make_unique<DirectX::SpriteFont>(Device, L"Text/comic_sans_ms_16.spritefont"); //Setting Font
-	spriteBatch->Begin();
-	spriteFont->DrawString(spriteBatch.get(), Text, XMFLOAT2(0, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Rate
-	spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Time
-	//spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Time
-	spriteFont->DrawString(spriteBatch.get(), Text3, XMFLOAT2(1550, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-	spriteFont->DrawString(spriteBatch.get(), Text4, XMFLOAT2(1550, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-	spriteFont->DrawString(spriteBatch.get(), Text5, XMFLOAT2(1550, 100), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-	spriteFont->DrawString(spriteBatch.get(), Text6, XMFLOAT2(1550, 150), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-	spriteFont->DrawString(spriteBatch.get(), Text7, XMFLOAT2(1550, 200), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-	spriteFont->DrawString(spriteBatch.get(), Text8, XMFLOAT2(1550, 250), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-	spriteBatch->End();
-	swapChain->Present(0, 0); //Swaps the chian
+		//Calculates Percentge Left
+		PercentageKilled = (TargetsLeft / TotalTargets) * 100;
+		//Combines Percentege Left to text
+		wstring TP = std::to_wstring(PercentageKilled);
+		wstring TPEXT = L"Percentage Left = ";
+		TPEXT += TP;
+		const wchar_t * Text8 = TPEXT.c_str();
+
+
+		//Text Draw stage
+		spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
+		spriteFont = std::make_unique<DirectX::SpriteFont>(Device, L"Text/comic_sans_ms_16.spritefont"); //Setting Font
+		spriteBatch->Begin();
+		spriteFont->DrawString(spriteBatch.get(), Text3, XMFLOAT2(1550, 00), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text4, XMFLOAT2(1550, 50), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text5, XMFLOAT2(1550, 100), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text6, XMFLOAT2(1550, 150), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text7, XMFLOAT2(1550, 200), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), L"Level Finished Congrtulations \n your score is on the right \n to start a new level press X", XMFLOAT2(500, 200), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text8, XMFLOAT2(1550, 250), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteBatch->End();
+		swapChain->Present(0, 0); //Swaps the chian
+	}
 }

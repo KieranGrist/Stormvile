@@ -4,6 +4,7 @@
 
 void Target::Setup(targetInit Init)
 {
+	//Initiilise Targets Game Object With the structure values
 	GameObjectInit Temp;
 	Temp.position = Init.Position;
 	Temp.scale = Init.Scale;
@@ -13,12 +14,14 @@ void Target::Setup(targetInit Init)
 	Temp.ColourR = Init.colourR;
 	Temp.DrawTexture = Init.DrawTexture;
 	Setup(Temp);
+	//Set Target Health
 	Health = Init.Health;
 	
 }
 
 void Target::Setup(GameObjectInit Init)
 {
+	//Initiilise Targets Game Object With the structure values
 	Position = Init.position;
 	Scale = Init.scale;
 	Rotation = Init.rotation;
@@ -30,17 +33,15 @@ void Target::Setup(GameObjectInit Init)
 
 void Target::Update()
 {
-	MinExtent = VectorSub(Position, Vector3(1,1,1));
-	MaxExtent = VectorAdd(Position, Vector3(1, 1, 1));
+	//Simple Update script, it will only draw and update collision if the health is more then 1
 	if (Health >= 1)
 	{
+		MinExtent = VectorSub(Position, Vector3(1, 1, 1));
+		MaxExtent = VectorAdd(Position, Vector3(1, 1, 1));
 		Draw();
 	}
 	else
 	{
-		Position.x += 500000.0f;
-		Position.y += 500000.0f;
-		Position.z += 500000.0f;
 	}
 }
 
