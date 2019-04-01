@@ -971,9 +971,9 @@ void GameObject::Draw()
 	CBLightingBuffer LightBuffer;
 	
 	//Set Mesh Colours
-	g_vMeshColor.x = Red;
-	g_vMeshColor.y = Green;
-	g_vMeshColor.z = Blue;
+	g_vMeshColor.x = 1;//Red;
+	g_vMeshColor.y =  1;//Green;
+	g_vMeshColor.z =  1;// Blue;
 
 	//Set Position Matrix
 	PositionMatrix = XMMatrixTranslation(Position.x,
@@ -1003,7 +1003,7 @@ XMMATRIX RotationMatrix;
 	 X = XMVectorGetX(Eye);
 	 Y = XMVectorGetY(Eye);
 	 Z = XMVectorGetZ(Eye);
-	LightBuffer.eyePosition = XMFLOAT3(X,Y,Z);
+	LightBuffer.eyePosition = XMFLOAT3(Red,Green,Blue);
 	LightBuffer.Ke = XMFLOAT3(1, 1, 1);
 	LightBuffer.Ka = XMFLOAT3(1, 1, 1);
 	LightBuffer.Kd = XMFLOAT3(1, 1, 1);
@@ -1086,9 +1086,9 @@ void Player::Draw()
 	//Create Rotation Matrix
 	XMMATRIX RotationMatrix;
 	float X, Y, Z;
-	X = Rotation.x;
-	Y = Rotation.y;
-	Z = Rotation.z;
+	X =Deg2Rad( Rotation.x);
+	Y = Deg2Rad(Rotation.y);
+	Z = Deg2Rad(Rotation.z);
 	RotationMatrix = Matrix::CreateFromYawPitchRoll(X, Y, Z);
 	XMMATRIX ScaleMatrix = XMMatrixScaling(Scale.x,
 		Scale.y,
@@ -1106,7 +1106,7 @@ void Player::Draw()
 	Y = XMVectorGetY(Eye);
 	Z = XMVectorGetZ(Eye);
 	LightBuffer.eyePosition = XMFLOAT3(X, Y, Z);
-	LightBuffer.Ke = XMFLOAT3(1, 1, 1);
+	LightBuffer.Ke = XMFLOAT3(Red, Green, Blue);
 	LightBuffer.Ka = XMFLOAT3(1, 1, 1);
 	LightBuffer.Kd = XMFLOAT3(1, 1, 1);
 	LightBuffer.Ks = XMFLOAT3(1, 1, 1);
@@ -1367,7 +1367,7 @@ void Level1()
 		player.Health = 100;
 		player.Rotation = Vector3(0, 0, 0);
 		player.Shots = 0;
-		player.DrawTexture = MarbleTexture;
+		player.DrawTexture = BlankTexture;
 		objPlayer.Setup(player);
 
 		//Initialising Corridor 0
@@ -1586,8 +1586,6 @@ void Level1()
 		End.TurretTexture = TargetTexture;
 		End.TargetTexture = TargetTexture;
 		EndBlock.Setup(End);
-
-
 		Leveltimer.Restart();
 		Leveltimer.Start();
 		TotalTargets = 0;
@@ -2012,7 +2010,8 @@ void Level1()
 	Camera.Position.x = -objPlayer.ForwardDirection.x;
 	Camera.Position.y = -objPlayer.ForwardDirection.y;
 	Camera.Position.z = -objPlayer.ForwardDirection.z;
-	Camera.Position = Camera.MultiplyVector(Camera.Position, 1.1f);
+	Camera.Position = Camera.MultiplyVector(Camera.Position, 3);
+	Camera.Position.y += 1;
 	Camera.Position = Camera.VectorAdd(Camera.Position, objPlayer.Position);
 	Eye = XMVectorSet(Camera.Position.x, Camera.Position.y, Camera.Position.z, 0.0f);
 	At = XMVectorSet(objPlayer.Position.x, objPlayer.Position.y, objPlayer.Position.z, 0.0f);
