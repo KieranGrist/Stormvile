@@ -5,6 +5,16 @@ class CollisionBox : public VectorMaths
 {
 public:
 	Vector3 MinExtent, MaxExtent;
+	Vector3 MinPoints, MaxPoints;
+	void SetBox(Vector3 Min, Vector3 Max)
+	{
+		MinPoints = Min;
+		MaxPoints = Max;
+	}
+	void UpdateBox(Vector3 Position)
+	{
+		Setup(Position - MinPoints, Position + MaxPoints);
+	}
 	virtual void Setup(Vector3 MinEx, Vector3 MaxExtent);
 	CollisionBox();
 	virtual float GetTop();

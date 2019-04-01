@@ -18,54 +18,40 @@
 #include "StopWatch.h"
 #include "Room.h"
 #include "OBJ_Loader.h"
-int PIndexAmmount;
+
 /*
 https://github.com/Pindrought/DirectX-11-Engine-VS2017/blob/Tutorial_18/DirectX%2011%20Engine%20VS2017/DirectX%2011%20Engine%20VS2017/Graphics/Graphics.cpp
 
 
 
 */
-objl::Loader loader;
-//float Height, Width; // Height And Width Values for viewport
-//GameObject Camera; //Game Camera 
-//GameObject FocusObject;  //Object that Camera Focuses on
-//Boundaries StartBlock, EndBlock; // Start And End Block For Level generation
-//Player objPlayer; //the Player 
-//Corridor objLevel1Corridor[6]; //6 Corridors
-//Room objRoom; // 1 Room
-//bool setup = true; //Uses to set up levels
-//int CurrentFrameRate, FPS; //FPS is the frame rate per secons
-//float LevelTime; //Time Taken to complete a level
-//float TotalTargets; //Total Number OF Targets in game world
-//float TargetsLeft; //Number of targets left
-//float TargetsKilled;
-//float PercentageKilled;
-//double Timer;
-//double DeltaTime = 0; 
-//XMVECTOR Eye, At, Up;
-//Stopwatch Frametimer;
-//Stopwatch Leveltimer;
-//std::unique_ptr<DirectX::SpriteBatch> spriteBatch;
-//std::unique_ptr<DirectX::SpriteFont> spriteFont;
 //--------------------------------------------------------------------------------------
 // Structures
 //--------------------------------------------------------------------------------------
+
+
 //Creates View Buffer
 struct CBNeverChanges
 {
 	XMMATRIX mView;
 };
+
+
 //Creates Projection Buffer
 struct CBChangeOnResize
 {
 	XMMATRIX mProjection;
 };
+
+
 //Creates Object Buffer
 struct CBChangesEveryFrame
 {
 	XMMATRIX mWorld;
 	XMFLOAT4 vMeshColor;
 };
+
+
 //Creates Lighting Buffer
 struct CBLightingBuffer
 {
@@ -88,9 +74,8 @@ struct CBLightingBuffer
 	float E7 = 1;
 	float shininess;
 };
-D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
-D3D11_TEXTURE2D_DESC descDepth = {};
-CBNeverChanges cbNeverChanges;
+
+
 //--------------------------------------------------------------------------------------
 // Global Variables
 //--------------------------------------------------------------------------------------
@@ -105,9 +90,7 @@ ID3D11VertexShader*                 g_pVertexShader = nullptr;
 ID3D11PixelShader*                  g_pPixelShader = nullptr;
 ID3D11InputLayout*                  g_pVertexLayout = nullptr;
 ID3D11Buffer*                       g_pVertexBuffer = nullptr;
-ID3D11Buffer* g_pDiscoveryBuffer = nullptr;
 ID3D11Buffer*                       g_pIndexBuffer = nullptr;
-ID3D11Buffer* g_pDiscoveryIndex = nullptr;
 ID3D11Buffer*                       g_pCBNeverChanges = nullptr;
 ID3D11Buffer*                       g_pCBChangeOnResize = nullptr;
 ID3D11Buffer*                       g_pCBChangesEveryFrame = nullptr;
@@ -128,12 +111,36 @@ ID3D11Texture2D*                    DepthStencilBuffer = nullptr;
 ID3D11DepthStencilView*             depthStencelView = nullptr;
 ID3D11DepthStencilState * depthStencilState;
 ID3D11RasterizerState * rasterizerState;
-
 ID3D11SamplerState*                 g_pSamplerLinear = nullptr;
 XMMATRIX                            g_World;
 XMMATRIX                            g_View;
 XMMATRIX                            g_Projection;
 XMFLOAT4                           g_vMeshColor(0.7f, 0.7f, 0.7f, 1);
+objl::Loader loader;
+float Height, Width; // Height And Width Values for viewport
+GameObject Camera; //Game Camera 
+GameObject FocusObject;  //Object that Camera Focuses on
+Boundaries StartBlock, EndBlock; // Start And End Block For Level generation
+Player objPlayer; //the Player 
+Corridor objLevel1Corridor[6]; //6 Corridors
+Room objRoom; // 1 Room
+bool setup = true; //Uses to set up levels
+int CurrentFrameRate, FPS; //FPS is the frame rate per secons
+float LevelTime; //Time Taken to complete a level
+float TotalTargets; //Total Number OF Targets in game world
+float TargetsLeft; //Number of targets left
+float TargetsKilled;
+float PercentageKilled;
+double Timer;
+double DeltaTime = 0;
+XMVECTOR Eye, At, Up;
+Stopwatch Frametimer;
+Stopwatch Leveltimer;
+std::unique_ptr<DirectX::SpriteBatch> spriteBatch;
+std::unique_ptr<DirectX::SpriteFont> spriteFont;
+D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
+D3D11_TEXTURE2D_DESC descDepth = {};
+CBNeverChanges cbNeverChanges;
 
 
 
@@ -279,35 +286,35 @@ void Model::CreateModel(std::string path)
 			ObjectVertex[i].Pos = Vector3(loader.LoadedVertices[i].Position.X, loader.LoadedVertices[i].Position.Y, loader.LoadedVertices[i].Position.Z);
 			ObjectVertex[i].Normal = Vector3(loader.LoadedVertices[i].Normal.X, loader.LoadedVertices[i].Normal.Y, loader.LoadedVertices[i].Normal.Z);
 			ObjectVertex[i].Tex = Vector2(loader.LoadedVertices[i].TextureCoordinate.X, loader.LoadedVertices[i].TextureCoordinate.Y);
-			if (ObjectVertex[i].Pos.x < objPlayer.MinPoints.x)
+			if (ObjectVertex[i].Pos.x < MinPoints.x)
 			{
-				objPlayer.MinPoints.x = ObjectVertex[i].Pos.x;
+				MinPoints.x = ObjectVertex[i].Pos.x;
 			}
-			if (ObjectVertex[i].Pos.y < objPlayer.MinPoints.y)
+			if (ObjectVertex[i].Pos.y < MinPoints.y)
 			{
-				objPlayer.MinPoints.y = ObjectVertex[i].Pos.y;
-			}
-
-			if (ObjectVertex[i].Pos.z < objPlayer.MinPoints.z)
-			{
-				objPlayer.MinPoints.z = ObjectVertex[i].Pos.z;
+				MinPoints.y = ObjectVertex[i].Pos.y;
 			}
 
-
-
-
-			if (ObjectVertex[i].Pos.x > objPlayer.MaxPoints.x)
+			if (ObjectVertex[i].Pos.z < MinPoints.z)
 			{
-				objPlayer.MaxPoints.x = ObjectVertex[i].Pos.x;
-			}
-			if (ObjectVertex[i].Pos.y > objPlayer.MaxPoints.y)
-			{
-				objPlayer.MaxPoints.y = ObjectVertex[i].Pos.y;
+				MinPoints.z = ObjectVertex[i].Pos.z;
 			}
 
-			if (ObjectVertex[i].Pos.z > objPlayer.MaxPoints.z)
+
+
+
+			if (ObjectVertex[i].Pos.x > MaxPoints.x)
 			{
-				objPlayer.MaxPoints.z = ObjectVertex[i].Pos.z;
+				MaxPoints.x = ObjectVertex[i].Pos.x;
+			}
+			if (ObjectVertex[i].Pos.y > MaxPoints.y)
+			{
+				MaxPoints.y = ObjectVertex[i].Pos.y;
+			}
+
+			if (ObjectVertex[i].Pos.z > MaxPoints.z)
+			{
+				MaxPoints.z = ObjectVertex[i].Pos.z;
 			}
 
 
@@ -321,30 +328,29 @@ void Model::CreateModel(std::string path)
 
 		D3D11_SUBRESOURCE_DATA InitData = {};
 		InitData.pSysMem = ObjectVertex;
-		Device->CreateBuffer(&bd, &InitData, &g_pDiscoveryBuffer);
+		Device->CreateBuffer(&bd, &InitData, &ObjectVertexBuffer);
 
 
 		// Set vertex buffer
 		UINT stride = sizeof(SimpleVertex);
 		UINT offset = 0;
-		DevCon->IASetVertexBuffers(0, 1, &g_pDiscoveryBuffer, &stride, &offset);
+		DevCon->IASetVertexBuffers(0, 1, &ObjectVertexBuffer, &stride, &offset);
 
 		//Create Index Buffer 
 		const int IMax = loader.LoadedIndices.size();
-		DiscIndices = new WORD[IMax];
+		ObjectIndices = new WORD[IMax];
 		for (int i = 0; i < IMax; i++)
 		{
-			DiscIndices[i] = loader.LoadedIndices[i];
+			ObjectIndices[i] = loader.LoadedIndices[i];
 		}
 
 		bd.Usage = D3D11_USAGE_DEFAULT;
 		bd.ByteWidth = sizeof(WORD) * IMax;
 		bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 		bd.CPUAccessFlags = 0;
-		InitData.pSysMem = DiscIndices;
-		Device->CreateBuffer(&bd, &InitData, &g_pDiscoveryIndex);
-		PIndexAmmount = IMax;
-		DevCon->IASetIndexBuffer(g_pDiscoveryIndex, DXGI_FORMAT_R16_UINT, 0);
+		InitData.pSysMem = ObjectIndices;
+		Device->CreateBuffer(&bd, &InitData, &ObjectIndexBuffer);
+		IndexAmmount = IMax;
 	}
 }
 //--------------------------------------------------------------------------------------
@@ -608,89 +614,6 @@ HRESULT InitDevice()
 	pPSBlob->Release();
 	if (FAILED(hr))
 		return hr;
-
-	if (loader.LoadFile("Discovery.obj") == true)
-	{
-		//Create Vertex Buffer
-		const int max = loader.LoadedVertices.size();
-		DiscoveryVertex = new SimpleVertex[max];
-		for (int i = 0; i < max; i++)
-		{
-			DiscoveryVertex[i].Pos = Vector3(loader.LoadedVertices[i].Position.X, loader.LoadedVertices[i].Position.Y, loader.LoadedVertices[i].Position.Z);
-			DiscoveryVertex[i].Normal = Vector3(loader.LoadedVertices[i].Normal.X, loader.LoadedVertices[i].Normal.Y, loader.LoadedVertices[i].Normal.Z);
-			DiscoveryVertex[i].Tex = Vector2(loader.LoadedVertices[i].TextureCoordinate.X, loader.LoadedVertices[i].TextureCoordinate.Y);
-			if (DiscoveryVertex[i].Pos.x < objPlayer.MinPoints.x)
-			{
-				objPlayer.MinPoints.x = DiscoveryVertex[i].Pos.x;
-			}
-			if (DiscoveryVertex[i].Pos.y < objPlayer.MinPoints.y)
-			{
-				objPlayer.MinPoints.y = DiscoveryVertex[i].Pos.y;
-			}
-
-			if (DiscoveryVertex[i].Pos.z < objPlayer.MinPoints.z)
-			{
-				objPlayer.MinPoints.z = DiscoveryVertex[i].Pos.z;
-			}
-
-
-
-
-			if (DiscoveryVertex[i].Pos.x > objPlayer.MaxPoints.x)
-			{
-				objPlayer.MaxPoints.x = DiscoveryVertex[i].Pos.x;
-			}
-			if (DiscoveryVertex[i].Pos.y > objPlayer.MaxPoints.y)
-			{
-				objPlayer.MaxPoints.y = DiscoveryVertex[i].Pos.y;
-			}
-
-			if (DiscoveryVertex[i].Pos.z > objPlayer.MaxPoints.z)
-			{
-				objPlayer.MaxPoints.z = DiscoveryVertex[i].Pos.z;
-			}
-
-
-		}
-
-		D3D11_BUFFER_DESC bd = {};
-		bd.Usage = D3D11_USAGE_DEFAULT;
-		bd.ByteWidth = sizeof(SimpleVertex) * max;
-		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		bd.CPUAccessFlags = 0;
-
-		D3D11_SUBRESOURCE_DATA InitData = {};
-		InitData.pSysMem = DiscoveryVertex;
-		hr = Device->CreateBuffer(&bd, &InitData, &g_pDiscoveryBuffer);
-		if (FAILED(hr))
-			return hr;
-
-		// Set vertex buffer
-		UINT stride = sizeof(SimpleVertex);
-		UINT offset = 0;
-		DevCon->IASetVertexBuffers(0, 1, &g_pDiscoveryBuffer,&stride, &offset);
-
-		//Create Index Buffer 
-		const int IMax = loader.LoadedIndices.size();
-		DiscIndices = new WORD[IMax];
-		for (int i = 0; i < IMax; i++)
-		{
-			DiscIndices[i] = loader.LoadedIndices[i];
-		}
-	
-		bd.Usage = D3D11_USAGE_DEFAULT;
-		bd.ByteWidth = sizeof(WORD) * IMax;
-		bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-		bd.CPUAccessFlags = 0;
-		InitData.pSysMem = DiscIndices;
-		hr = Device->CreateBuffer(&bd, &InitData, &g_pDiscoveryIndex);
-		if (FAILED(hr))
-			return hr;
-		PIndexAmmount = IMax;
-		DevCon->IASetIndexBuffer(g_pDiscoveryIndex, DXGI_FORMAT_R16_UINT, 0);
-	}
-
-
 	// Create vertex buffer
 	SimpleVertex vertices[] =
 	{
@@ -1141,16 +1064,16 @@ XMMATRIX RotationMatrix;
 	//Draw Cube
 	DevCon->DrawIndexed(36, 0, 0);
 }
-void Player::Draw()
+void GameObject::ModelDraw()
 {
-	UINT stride = sizeof(SimpleVertex);
+	UINT stride = sizeof(ObjectVertex);
 	UINT offset = 0;
 
 	//Set Vertex Buffer
-	DevCon->IASetVertexBuffers(0, 1, &g_pDiscoveryBuffer, &stride, &offset);
+	DevCon->IASetVertexBuffers(0, 1, &ObjectVertexBuffer, &stride, &offset);
 
 	//Set Index Buffer
-	DevCon->IASetIndexBuffer(g_pDiscoveryIndex, DXGI_FORMAT_R16_UINT, 0);
+	DevCon->IASetIndexBuffer(ObjectIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
 
 	//Set Camera view
 	g_View = XMMatrixLookAtLH(Eye, At, Up);
@@ -1241,7 +1164,7 @@ void Player::Draw()
 	DevCon->PSSetSamplers(0, 1, &g_pSamplerLinear);
 
 	//Draw Cube
-	DevCon->DrawIndexed(PIndexAmmount, 0, 0);
+	DevCon->DrawIndexed(IndexAmmount, 0, 0);
 }
 bool EndLevel = false;
 void Level1()
@@ -1462,6 +1385,7 @@ void Level1()
 		player.Shots = 0;
 		player.DrawTexture = BlankTexture;
 		objPlayer.Setup(player);
+	
 
 		//Initialising Corridor 0
 		corridorsInit Corridor1;
@@ -1492,8 +1416,7 @@ void Level1()
 		objLevel1Corridor[0].Setup(Corridor1);
 		setup = false;
 
-
-
+		objPlayer.CreateModel("Discovery.obj");
 		//Initialising Corridor 1
 		int Length = objLevel1Corridor[0].FloorLength;
 		Corridor1.Position = objLevel1Corridor[0].objBoundaries[Length - 1].Position;
@@ -2126,7 +2049,8 @@ void Level1()
 	
 	//Update End Block
 	EndBlock.Update();
-	objPlayer.Draw();
+
+	objPlayer.ModelDraw();
 	//If the player is dead restart the level
 	if (objPlayer.Health == 0)
 	{

@@ -29,6 +29,5 @@ public:
 	Player();
 	void Setup(playerInit Init);
 	void Setup(GameObjectInit Init) override;
-	void Draw() override;
 	~Player();
 };

@@ -23,5 +23,7 @@ public:
 	virtual void Setup(GameObjectInit Init);
 	~GameObject();
 	virtual void Draw();
+	
+	virtual void ModelDraw();//Moderfied Draw call for drawing imported models
 };
 

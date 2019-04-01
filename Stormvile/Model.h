@@ -15,6 +15,7 @@ public:
 	WORD * ObjectIndices = NULL;
 	ID3D11Buffer* ObjectVertexBuffer = nullptr;
 	ID3D11Buffer* ObjectIndexBuffer = nullptr;
+	int IndexAmmount;
 	void CreateModel(std::string path);
 	Model()
 	{
