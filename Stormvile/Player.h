@@ -17,6 +17,7 @@ private:
 	Vector3 RightDirecton, UpDirection, Velocity, Acceleration;
 	float Mass, PITCH, YAW, Sensertivity =1;
 public:
+	Vector3 BulletMax, BulletMin;
 	float Health, DeltaTime;
 	Gun objGunLeft,objGunRight;
 	Vector3 Force;

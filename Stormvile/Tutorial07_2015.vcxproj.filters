@@ -43,6 +43,7 @@
     <ClInclude Include="StopWatch.h" />
     <ClInclude Include="Room.h" />
     <ClInclude Include="OBJ_Loader.h" />
+    <ClInclude Include="Model.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Tutorial07.fx">

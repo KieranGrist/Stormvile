@@ -4,6 +4,8 @@
 
 Player::Player()
 {
+	MinPoints = XMFLOAT3(10000, 10000, 1000);
+	MaxPoints = XMFLOAT3(-10000, -10000, -1000);
 }
 
 void Player::Setup(playerInit Init)
@@ -25,7 +27,6 @@ void Player::Setup(playerInit Init)
 	Velocity = Vector3(0, 0, 0);
 	PITCH = 0;
 	YAW = 0;
-
 }
 void Player::Setup(GameObjectInit Init)
 {
@@ -39,9 +40,10 @@ void Player::Setup(GameObjectInit Init)
 }
 void Player::Update()
 {
-Health = 100;
-	MinExtent = VectorSub(Position, Vector3(1, 1, 1));
-	MaxExtent = VectorAdd(Position, Vector3(1, 1, 1));
+   //Health = 100;
+
+	MinExtent = VectorSub(Position, Vector3(MinPoints));
+	MaxExtent = VectorAdd(Position, Vector3(MaxPoints));
 	//LEFT handed system 
 	ForwardDirection = EulerAnglesToDirection(Vector3(PITCH, YAW, 0));
 	RightDirecton = VectorCrossProduct(Vector3(0, 1, 0), ForwardDirection);
@@ -66,7 +68,7 @@ Health = 100;
 	{
 		PITCH += Sensertivity;
 	}
-	PITCH = clamp(PITCH, 89, -89);
+	PITCH = clamp(PITCH, 89.99, -89.99);
 	Sensertivity = clamp(Sensertivity, 2, -0.5);
 	/*
 	LEFT, RIGHT = THRUSTERS LEFT AND RIGHT
@@ -133,7 +135,6 @@ Health = 100;
 	GunTemp.DrawTexture = DrawTexture;
 	objGunRight.DeltaTime = DeltaTime;
 	objGunRight.Setup(GunTemp);
-	
 	objGunLeft.Update();
 	objGunRight.Update();
 	if (F == true)

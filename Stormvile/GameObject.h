@@ -1,14 +1,15 @@
 //File Name : GameObject.h
 #pragma once
-#include "CollisionBox.h"
+#include "Model.h"
 struct GameObjectInit
 {
 	Vector3 position, rotation, scale; float ColourR, ColourG, ColourB;
 	ID3D11ShaderResourceView * DrawTexture;
 };
-class GameObject :public CollisionBox
+class GameObject :public Model
 {
 public:
+	Vector3 MinPoints, MaxPoints;
 	Vector3 Position; //Position in the world
 	Vector3 Rotation; //Rotation in the world
 	Vector3 Scale; //Scale

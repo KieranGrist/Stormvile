@@ -53,6 +53,8 @@ bool Gun::Fire()
 			TempBullet.DrawTexture = DrawTexture;;
 			TempBullet.GunPos = Position;
 			TempBullet.GunRot = Rotation;
+			objbulletlist[i].MinPoints = MinPoints;
+			objbulletlist[i].MaxPoints = MaxPoints;
 			objbulletlist[i].Setup(TempBullet);
 			objbulletlist[i].Alive = true;
 			objbulletlist[i].TimeOutDestructor = 0;
@@ -65,14 +67,7 @@ bool Gun::Fire()
 }
 void Gun::Update()
 {
-
-
-
 		BulletWait += DeltaTime;
-
-
-
-
  	for (int i = 0; i < 50; i++)
 	{
 		if (objbulletlist[i].Alive == true)

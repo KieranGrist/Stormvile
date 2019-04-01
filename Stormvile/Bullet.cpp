@@ -41,13 +41,12 @@ void Bullet::Setup(bulletInit Init)
 void Bullet::Update()
 {
 	TimeOutDestructor += DeltaTime;
-	MinExtent = VectorSub(Position, Vector3(1, 1, 1));
-	MaxExtent = VectorAdd(Position, Vector3(1, 1, 1));
+	MinExtent = VectorSub(Position,MinPoints);
+	MaxExtent = VectorAdd(Position, MaxPoints);
 	Mass = 1.0f;
 	Acceleration =Force/ Mass;
 	Velocity += Acceleration*DeltaTime;
 	Position += Velocity*DeltaTime;
-
 //	Force = Vector3(0, 0, 0);
 	Draw();
 }

@@ -5,8 +5,6 @@
 
 GameObject::GameObject()
 {
-	CollisionBox COLLIDER;
-
 	Position = Vector3	(0,0,0);
 	Rotation = Vector3(0, 0, 0);
 	Scale = Vector3(1, 1, 1);
@@ -30,9 +28,8 @@ void GameObject::Setup(
 
 void GameObject::Update()
 {
-	MinExtent = VectorSub(Position, Vector3(1, 1, 1));
-	MaxExtent = VectorAdd(Position, Vector3(1, 1, 1));
-	
+	MinExtent = VectorSub(Position, MinPoints);
+	MaxExtent = VectorAdd(Position, MaxPoints);
 	Draw();
 }
 GameObject::~GameObject()

@@ -9,7 +9,7 @@ struct initGun
 	string offsetdirection;
 	ID3D11ShaderResourceView * DrawTexture;
 };
-class Gun : Bullet
+class Gun : public Bullet
 {
 public:
 	float BulletWait =0;

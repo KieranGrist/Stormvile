@@ -303,42 +303,27 @@ void Boundaries::Update()
 
 	if (BackWall == true)
 	{
-		objBackWall.Update();
-		objBackWall.MinExtent = VectorSub(objBackWall.Position, Vector3(0.5, 5, 5));
-		objBackWall.MaxExtent = VectorAdd(objBackWall.Position, Vector3(0.5, 5, 5));
-
-		
+		objBackWall.Update();	
 	}
 	if (FrontWall == true)
 	{
 		objFrontWall.Update();
-		objFrontWall.MinExtent = VectorSub(objFrontWall.Position, Vector3(0.5, 5, 5));
-		objFrontWall.MaxExtent = VectorAdd(objFrontWall.Position, Vector3(0.5, 5, 5));
-
 	}
 	if (LeftWall == true)
 	{
 		objLeftWall.Update();
-		objLeftWall.MinExtent = VectorSub(objLeftWall.Position, Vector3(5.0f, 5.0f, 0.5f));
-		objLeftWall.MaxExtent = VectorAdd(objLeftWall.Position, Vector3(5.0f, 5.0f, 0.5f));
 	}
 	if (RightWall == true)
 	{
 		objRightWall.Update();
-		objRightWall.MinExtent = VectorSub(objRightWall.Position, Vector3(5.0f, 5.0f, 0.5f));
-		objRightWall.MaxExtent = VectorAdd(objRightWall.Position, Vector3(5.0f, 5.0f, 0.5f));
 	}
 	if (Roof == true)
 	{
 		objRoof.Update();
-		objRoof.MinExtent = VectorSub(objRoof.Position, Vector3(5.0f, 0.5f, 5.0f));
-		objRoof.MaxExtent = VectorAdd(objRoof.Position, Vector3(5.0f, 0.5f, 5.0f));
 	}
 	if (Floor == true)
 	{
 		objFloor.Update();
-		objFloor.MinExtent = VectorSub(objFloor.Position, Vector3(5.0f, 0.5f, 5.0f));
-		objFloor.MaxExtent = VectorAdd(objFloor.Position, Vector3(5.0f, 0.5f, 5.0f));
 	}
 	if (TARGET == true)
 	{

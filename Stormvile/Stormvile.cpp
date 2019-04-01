@@ -26,38 +26,30 @@ https://github.com/Pindrought/DirectX-11-Engine-VS2017/blob/Tutorial_18/DirectX%
 
 */
 objl::Loader loader;
-float Height, Width; // Height And Width Values for viewport
-GameObject Camera; //Game Camera 
-GameObject FocusObject;  //Object that Camera Focuses on
-Boundaries StartBlock, EndBlock; // Start And End Block For Level generation
-Player objPlayer; //the Player 
-Corridor objLevel1Corridor[6]; //6 Corridors
-Room objRoom; // 1 Room
-bool setup = true; //Uses to set up levels
-int CurrentFrameRate, FPS; //FPS is the frame rate per secons
-float LevelTime; //Time Taken to complete a level
-float TotalTargets; //Total Number OF Targets in game world
-float TargetsLeft; //Number of targets left
-float TargetsKilled;
-float PercentageKilled;
-double Timer;
-double DeltaTime = 0; 
-XMVECTOR Eye, At, Up;
-Stopwatch Frametimer;
-Stopwatch Leveltimer;
-std::unique_ptr<DirectX::SpriteBatch> spriteBatch;
-std::unique_ptr<DirectX::SpriteFont> spriteFont;
+//float Height, Width; // Height And Width Values for viewport
+//GameObject Camera; //Game Camera 
+//GameObject FocusObject;  //Object that Camera Focuses on
+//Boundaries StartBlock, EndBlock; // Start And End Block For Level generation
+//Player objPlayer; //the Player 
+//Corridor objLevel1Corridor[6]; //6 Corridors
+//Room objRoom; // 1 Room
+//bool setup = true; //Uses to set up levels
+//int CurrentFrameRate, FPS; //FPS is the frame rate per secons
+//float LevelTime; //Time Taken to complete a level
+//float TotalTargets; //Total Number OF Targets in game world
+//float TargetsLeft; //Number of targets left
+//float TargetsKilled;
+//float PercentageKilled;
+//double Timer;
+//double DeltaTime = 0; 
+//XMVECTOR Eye, At, Up;
+//Stopwatch Frametimer;
+//Stopwatch Leveltimer;
+//std::unique_ptr<DirectX::SpriteBatch> spriteBatch;
+//std::unique_ptr<DirectX::SpriteFont> spriteFont;
 //--------------------------------------------------------------------------------------
 // Structures
 //--------------------------------------------------------------------------------------
-struct SimpleVertex
-{
-	Vector3 Pos;
-	Vector2 Tex;
-	Vector3 Normal;
-	Vector4 color;
-
-};
 //Creates View Buffer
 struct CBNeverChanges
 {
@@ -106,13 +98,9 @@ HINSTANCE                           g_hInst = nullptr;
 HWND                                g_hWnd = nullptr;
 D3D_DRIVER_TYPE                     g_driverType = D3D_DRIVER_TYPE_NULL;
 D3D_FEATURE_LEVEL                   g_featureLevel = D3D_FEATURE_LEVEL_11_0;
-
 ID3D11Device1*                      Device1 = nullptr;
-
 ID3D11DeviceContext1*               DevCon1 = nullptr;
-
 IDXGISwapChain1*                    swapChain1 = nullptr;
-
 ID3D11VertexShader*                 g_pVertexShader = nullptr;
 ID3D11PixelShader*                  g_pPixelShader = nullptr;
 ID3D11InputLayout*                  g_pVertexLayout = nullptr;
@@ -124,7 +112,6 @@ ID3D11Buffer*                       g_pCBNeverChanges = nullptr;
 ID3D11Buffer*                       g_pCBChangeOnResize = nullptr;
 ID3D11Buffer*                       g_pCBChangesEveryFrame = nullptr;
 ID3D11Buffer*    g_pCBLightBuffer = nullptr;
-
 ID3D11ShaderResourceView* BlankTexture;
 ID3D11ShaderResourceView* BrickTexture;
 ID3D11ShaderResourceView* MarbleTexture;
@@ -137,8 +124,6 @@ ID3D11Device*                       Device = nullptr;
 ID3D11DeviceContext*                DevCon = nullptr;
 IDXGISwapChain*                     swapChain = nullptr;
 ID3D11RenderTargetView*             RenderTargetView = nullptr;
-
-
 ID3D11Texture2D*                    DepthStencilBuffer = nullptr;
 ID3D11DepthStencilView*             depthStencelView = nullptr;
 ID3D11DepthStencilState * depthStencilState;
@@ -149,9 +134,6 @@ XMMATRIX                            g_World;
 XMMATRIX                            g_View;
 XMMATRIX                            g_Projection;
 XMFLOAT4                           g_vMeshColor(0.7f, 0.7f, 0.7f, 1);
-
-SimpleVertex *  DiscoveryVertex = NULL;
-WORD *								DiscIndices = NULL;
 
 
 
@@ -285,7 +267,86 @@ HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCS
 	return S_OK;
 }
 
+void Model::CreateModel(std::string path)
+{
+	if (loader.LoadFile(path) == true)
+	{
+		//Create Vertex Buffer
+		const int max = loader.LoadedVertices.size();
+		ObjectVertex = new SimpleVertex[max];
+		for (int i = 0; i < max; i++)
+		{
+			ObjectVertex[i].Pos = Vector3(loader.LoadedVertices[i].Position.X, loader.LoadedVertices[i].Position.Y, loader.LoadedVertices[i].Position.Z);
+			ObjectVertex[i].Normal = Vector3(loader.LoadedVertices[i].Normal.X, loader.LoadedVertices[i].Normal.Y, loader.LoadedVertices[i].Normal.Z);
+			ObjectVertex[i].Tex = Vector2(loader.LoadedVertices[i].TextureCoordinate.X, loader.LoadedVertices[i].TextureCoordinate.Y);
+			if (ObjectVertex[i].Pos.x < objPlayer.MinPoints.x)
+			{
+				objPlayer.MinPoints.x = ObjectVertex[i].Pos.x;
+			}
+			if (ObjectVertex[i].Pos.y < objPlayer.MinPoints.y)
+			{
+				objPlayer.MinPoints.y = ObjectVertex[i].Pos.y;
+			}
 
+			if (ObjectVertex[i].Pos.z < objPlayer.MinPoints.z)
+			{
+				objPlayer.MinPoints.z = ObjectVertex[i].Pos.z;
+			}
+
+
+
+
+			if (ObjectVertex[i].Pos.x > objPlayer.MaxPoints.x)
+			{
+				objPlayer.MaxPoints.x = ObjectVertex[i].Pos.x;
+			}
+			if (ObjectVertex[i].Pos.y > objPlayer.MaxPoints.y)
+			{
+				objPlayer.MaxPoints.y = ObjectVertex[i].Pos.y;
+			}
+
+			if (ObjectVertex[i].Pos.z > objPlayer.MaxPoints.z)
+			{
+				objPlayer.MaxPoints.z = ObjectVertex[i].Pos.z;
+			}
+
+
+		}
+
+		D3D11_BUFFER_DESC bd = {};
+		bd.Usage = D3D11_USAGE_DEFAULT;
+		bd.ByteWidth = sizeof(SimpleVertex) * max;
+		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		bd.CPUAccessFlags = 0;
+
+		D3D11_SUBRESOURCE_DATA InitData = {};
+		InitData.pSysMem = ObjectVertex;
+		Device->CreateBuffer(&bd, &InitData, &g_pDiscoveryBuffer);
+
+
+		// Set vertex buffer
+		UINT stride = sizeof(SimpleVertex);
+		UINT offset = 0;
+		DevCon->IASetVertexBuffers(0, 1, &g_pDiscoveryBuffer, &stride, &offset);
+
+		//Create Index Buffer 
+		const int IMax = loader.LoadedIndices.size();
+		DiscIndices = new WORD[IMax];
+		for (int i = 0; i < IMax; i++)
+		{
+			DiscIndices[i] = loader.LoadedIndices[i];
+		}
+
+		bd.Usage = D3D11_USAGE_DEFAULT;
+		bd.ByteWidth = sizeof(WORD) * IMax;
+		bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+		bd.CPUAccessFlags = 0;
+		InitData.pSysMem = DiscIndices;
+		Device->CreateBuffer(&bd, &InitData, &g_pDiscoveryIndex);
+		PIndexAmmount = IMax;
+		DevCon->IASetIndexBuffer(g_pDiscoveryIndex, DXGI_FORMAT_R16_UINT, 0);
+	}
+}
 //--------------------------------------------------------------------------------------
 // Create Direct3D device and swap chain
 //--------------------------------------------------------------------------------------
@@ -558,6 +619,38 @@ HRESULT InitDevice()
 			DiscoveryVertex[i].Pos = Vector3(loader.LoadedVertices[i].Position.X, loader.LoadedVertices[i].Position.Y, loader.LoadedVertices[i].Position.Z);
 			DiscoveryVertex[i].Normal = Vector3(loader.LoadedVertices[i].Normal.X, loader.LoadedVertices[i].Normal.Y, loader.LoadedVertices[i].Normal.Z);
 			DiscoveryVertex[i].Tex = Vector2(loader.LoadedVertices[i].TextureCoordinate.X, loader.LoadedVertices[i].TextureCoordinate.Y);
+			if (DiscoveryVertex[i].Pos.x < objPlayer.MinPoints.x)
+			{
+				objPlayer.MinPoints.x = DiscoveryVertex[i].Pos.x;
+			}
+			if (DiscoveryVertex[i].Pos.y < objPlayer.MinPoints.y)
+			{
+				objPlayer.MinPoints.y = DiscoveryVertex[i].Pos.y;
+			}
+
+			if (DiscoveryVertex[i].Pos.z < objPlayer.MinPoints.z)
+			{
+				objPlayer.MinPoints.z = DiscoveryVertex[i].Pos.z;
+			}
+
+
+
+
+			if (DiscoveryVertex[i].Pos.x > objPlayer.MaxPoints.x)
+			{
+				objPlayer.MaxPoints.x = DiscoveryVertex[i].Pos.x;
+			}
+			if (DiscoveryVertex[i].Pos.y > objPlayer.MaxPoints.y)
+			{
+				objPlayer.MaxPoints.y = DiscoveryVertex[i].Pos.y;
+			}
+
+			if (DiscoveryVertex[i].Pos.z > objPlayer.MaxPoints.z)
+			{
+				objPlayer.MaxPoints.z = DiscoveryVertex[i].Pos.z;
+			}
+
+
 		}
 
 		D3D11_BUFFER_DESC bd = {};
@@ -1086,9 +1179,9 @@ void Player::Draw()
 	//Create Rotation Matrix
 	XMMATRIX RotationMatrix;
 	float X, Y, Z;
-	X =Deg2Rad( Rotation.x);
-	Y = Deg2Rad(Rotation.y);
-	Z = Deg2Rad(Rotation.z);
+	X = -Deg2Rad( Rotation.y);
+	Y = Deg2Rad(Rotation.z);
+	Z = Deg2Rad(Rotation.x);
 	RotationMatrix = Matrix::CreateFromYawPitchRoll(X, Y, Z);
 	XMMATRIX ScaleMatrix = XMMatrixScaling(Scale.x,
 		Scale.y,

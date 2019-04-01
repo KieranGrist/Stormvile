@@ -416,6 +416,7 @@
     <ClInclude Include="Corridor.h" />
     <ClInclude Include="DDSTextureLoader.h" />
     <ClInclude Include="Gun.h" />
+    <ClInclude Include="Model.h" />
     <ClInclude Include="OBJ_Loader.h" />
     <ClInclude Include="Player.h" />
     <CLInclude Include="resource.h" />
