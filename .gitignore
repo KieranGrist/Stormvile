@@ -4,3 +4,5 @@ Debug/
 \.vs/Stormvile_2015/v14/
 
 packages/
+
+*.db
