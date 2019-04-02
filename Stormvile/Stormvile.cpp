@@ -555,11 +555,48 @@ HRESULT InitDevice()
 		DiscoveryVertex = new SimpleVertex[max];
 		for (int i = 0; i < max; i++)
 		{
-			DiscoveryVertex[i].Pos = Vector3(loader.LoadedVertices[i].Position.X, loader.LoadedVertices[i].Position.Y, loader.LoadedVertices[i].Position.Z);
+			DiscoveryVertex[i].Pos = Vector3(loader.LoadedVertices[i].Position.X, loader.LoadedVertices[i].Position.Y ,loader.LoadedVertices[i].Position.Z);
 			DiscoveryVertex[i].Normal = Vector3(loader.LoadedVertices[i].Normal.X, loader.LoadedVertices[i].Normal.Y, loader.LoadedVertices[i].Normal.Z);
 			DiscoveryVertex[i].Tex = Vector2(loader.LoadedVertices[i].TextureCoordinate.X, loader.LoadedVertices[i].TextureCoordinate.Y);
 		}
 
+
+		for (int i = 0; i < max; i++)
+		{
+
+			if (DiscoveryVertex[i].Pos.x < objPlayer.MODELMINPOINT.x)
+			{
+				objPlayer.MODELMINPOINT.x = DiscoveryVertex[i].Pos.x;
+			}
+			if (DiscoveryVertex[i].Pos.y < objPlayer.MODELMINPOINT.y)
+			{
+				objPlayer.MODELMINPOINT.y = DiscoveryVertex[i].Pos.y;
+			}
+
+			if (DiscoveryVertex[i].Pos.z < objPlayer.MODELMINPOINT.z)
+			{
+				objPlayer.MODELMINPOINT.z = DiscoveryVertex[i].Pos.z;
+			}
+
+
+
+
+			if (DiscoveryVertex[i].Pos.x > objPlayer.MODELMAXPOINT.x)
+			{
+				objPlayer.MODELMAXPOINT.x = DiscoveryVertex[i].Pos.x;
+			}
+			if (DiscoveryVertex[i].Pos.y > objPlayer.MODELMAXPOINT.y)
+			{
+				objPlayer.MODELMAXPOINT.y = DiscoveryVertex[i].Pos.y;
+			}
+
+			if (DiscoveryVertex[i].Pos.z > objPlayer.MODELMAXPOINT.z)
+			{
+				objPlayer.MODELMAXPOINT.z = DiscoveryVertex[i].Pos.z;
+			}
+		}
+
+//		objPlayer.MODELMAXPOINT = -objPlayer.MODELMINPOINT;
 		D3D11_BUFFER_DESC bd = {};
 		bd.Usage = D3D11_USAGE_DEFAULT;
 		bd.ByteWidth = sizeof(SimpleVertex) * max;
@@ -1086,10 +1123,10 @@ void Player::Draw()
 	//Create Rotation Matrix
 	XMMATRIX RotationMatrix;
 	float X, Y, Z;
-	X =Deg2Rad( Rotation.x);
-	Y = Deg2Rad(Rotation.y);
-	Z = Deg2Rad(Rotation.z);
-	RotationMatrix = Matrix::CreateFromYawPitchRoll(X, Y, Z);
+	X = Deg2Rad(Rotation.x);
+	Y = -Deg2Rad(Rotation.y);
+	Z = 0;//(Rotation.z);
+	RotationMatrix = Matrix::CreateFromYawPitchRoll(Y,0,X);
 	XMMATRIX ScaleMatrix = XMMatrixScaling(Scale.x,
 		Scale.y,
 		Scale.z);
@@ -2179,17 +2216,18 @@ void Render()
 		spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
 		spriteFont = std::make_unique<DirectX::SpriteFont>(Device, L"Text/comic_sans_ms_16.spritefont"); //Setting Font
 		spriteBatch->Begin();
-		spriteFont->DrawString(spriteBatch.get(), L"Storvile Space Corridor Shooter -BY UP814853(Kieran Grist)", XMFLOAT2(0, 0), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), Text, XMFLOAT2(0, 50), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Rate
-		spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 100), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Time
+		spriteFont->DrawString(spriteBatch.get(), L"Storvile Space Corridor Shooter -BY UP814853(Kieran Grist)", XMFLOAT2(0, 0), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text, XMFLOAT2(0, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Rate
+		spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 100), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Time
 																																					 //spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Time
-		spriteFont->DrawString(spriteBatch.get(), Text3, XMFLOAT2(1550, 00), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), Text4, XMFLOAT2(1550, 50), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), Text5, XMFLOAT2(1550, 100), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), Text6, XMFLOAT2(1550, 150), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), Text7, XMFLOAT2(1550, 200), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), Text8, XMFLOAT2(1550, 250), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), L"Arrow Keys Move ship \n WASD Rotate Ship \n Space Ship UP \n LControl Ship Down \n F Fire Lasers", XMFLOAT2(0, 750), DirectX::Colors::Black, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text3, XMFLOAT2(1550, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text4, XMFLOAT2(1550, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text5, XMFLOAT2(1550, 100), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text6, XMFLOAT2(1550, 150), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text7, XMFLOAT2(1550, 200), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), Text8, XMFLOAT2(1550, 250), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), L"X", XMFLOAT2(900, 150), DirectX::Colors::Red, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), L"Arrow Keys Move ship \n WASD Rotate Ship \n Space Ship UP \n LControl Ship Down \n F Fire Lasers", XMFLOAT2(0, 750), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
 		spriteBatch->End();
 		swapChain->Present(0, 0); //Swaps the chian
 	}
@@ -2257,7 +2295,7 @@ void Render()
 		spriteFont->DrawString(spriteBatch.get(), Text5, XMFLOAT2(1550, 100), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
 		spriteFont->DrawString(spriteBatch.get(), Text6, XMFLOAT2(1550, 150), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
 		spriteFont->DrawString(spriteBatch.get(), Text7, XMFLOAT2(1550, 200), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), L"Level Finished Congrtulations \n your score is on the right \n to start a new level press X", XMFLOAT2(500, 200), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteFont->DrawString(spriteBatch.get(), L"Level Finished Congratulations \n your score is on the right \n to start a new level press X", XMFLOAT2(500, 200), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
 		spriteFont->DrawString(spriteBatch.get(), Text8, XMFLOAT2(1550, 250), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
 		spriteBatch->End();
 		swapChain->Present(0, 0); //Swaps the chian

@@ -38,31 +38,40 @@ float CollisionBox::GetBack()
 {
 	return MinExtent.z;
 }
- bool CollisionBox::Intersects(CollisionBox Box1, CollisionBox Box2)
+bool CollisionBox::Intersects(CollisionBox Box1, CollisionBox Box2)
 {
-	 Vector3 Box1Half = (Box1.MaxExtent - Box1.MinExtent) * 0.5f;// + Box1.MinExtent;
-	 Vector3 Box2Half = (Box2.MaxExtent - Box2.MinExtent) * 0.5f;// + Box2.MinExtent;													 //Get Direction Between the two boxes + edges
-	 Vector3 Box1Centre = Box1Half + Box1.MinExtent;
-	 Vector3 Box2Centre = Box2Half + Box2.MinExtent;
-	 //Colliding to the Right
+	return !(Box2.GetLeft() > Box1.GetRight()
+		|| Box2.GetRight() < Box1.GetLeft()
+		|| Box2.GetTop() < Box1.GetBottom()
+		|| Box2.GetBottom() > Box1.GetTop()
+		|| Box2.GetBack() > Box1.GetFront()
+		|| Box2.GetFront() < Box1.GetBack());
 
 
-	 if (abs(Box1Centre.x - Box2Centre.x) > (Box1Half.x + Box2Half.x))
-	 {
-		 return false;
-	 }
-	 if (abs(Box1Centre.y - Box2Centre.y) >(Box1Half.y + Box2Half.y))
-	 {
-		 return false;
-	 }
+		//Vector3 Box1Half = (Box1.MaxExtent - Box1.MinExtent) * 0.5f;// + Box1.MinExtent;
+		//Vector3 Box2Half = (Box2.MaxExtent - Box2.MinExtent) * 0.5f;// + Box2.MinExtent;													 //Get Direction Between the two boxes + edges
+		//Vector3 Box1Centre = Box1Half + Box1.MinExtent;
+		//Vector3 Box2Centre = Box2Half + Box2.MinExtent;
+		////Colliding to the Right
 
-	 if (abs(Box1Centre.z - Box2Centre.z) >(Box1Half.z + Box2Half.z))
-	 {
-		 return false;
-	 }
-	 return true;
+
+
+
+		//if (abs(Box1Centre.x - Box2Centre.x) > (Box1Half.x + Box2Half.x))
+		//{
+		   // return false;
+		//}
+		//if (abs(Box1Centre.y - Box2Centre.y) >(Box1Half.y + Box2Half.y))
+		//{
+		   // return false;
+		//}
+
+		//if (abs(Box1Centre.z - Box2Centre.z) >(Box1Half.z + Box2Half.z))
+		//{
+		   // return false;
+		//}
+	   /* return true;*/
 }
-
 CollisionBox::~CollisionBox()
 {
 }

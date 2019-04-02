@@ -4,6 +4,8 @@
 
 Player::Player()
 {
+	MODELMINPOINT = XMFLOAT3(10000, 10000, 10000);
+	MODELMAXPOINT = XMFLOAT3(-10000, -10000, -10000);
 }
 
 void Player::Setup(playerInit Init)
@@ -39,12 +41,14 @@ void Player::Setup(GameObjectInit Init)
 }
 void Player::Update()
 {
-Health = 100;
-	MinExtent = VectorSub(Position, Vector3(1, 1, 1));
-	MaxExtent = VectorAdd(Position, Vector3(1, 1, 1));
+	Scale = Vector3(1, 1, 1);
+    //Health = 100;
+	MinExtent = Position + MODELMINPOINT;
+	MaxExtent = Position + MODELMAXPOINT;
 	//LEFT handed system 
 	ForwardDirection = EulerAnglesToDirection(Vector3(PITCH, YAW, 0));
 	RightDirecton = VectorCrossProduct(Vector3(0, 1, 0), ForwardDirection);
+	RightDirecton = VectorNormalized(RightDirecton);
 	UpDirection = VectorCrossProduct(ForwardDirection, RightDirecton);
 	Mass = 1;
 	
@@ -66,7 +70,7 @@ Health = 100;
 	{
 		PITCH += Sensertivity;
 	}
-	PITCH = clamp(PITCH, 89, -89);
+	PITCH = clamp(PITCH, 89.99, -89.99);
 	Sensertivity = clamp(Sensertivity, 2, -0.5);
 	/*
 	LEFT, RIGHT = THRUSTERS LEFT AND RIGHT
@@ -165,7 +169,7 @@ Health = 100;
 	objGunLeft.Update();
 	objGunRight.Update();
 
-Velocity /= 1.01f;
+	Velocity /= 1.01f;
 	Acceleration = Force / Mass;
 	Velocity += Acceleration *DeltaTime;
 	Position += Velocity* DeltaTime;

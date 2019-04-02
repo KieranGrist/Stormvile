@@ -22,13 +22,13 @@ void Gun::Setup(initGun Init)
 	if (Init.offsetdirection == "Left")
 	{
 		Vector3 Left = VectorCrossProduct(Vector3(0, 1, 0), Init.ForwardDirection);
-		Left *1.5f;
+		Left = VectorNormalized(Left);
 		Position -=  Left;
 	}
 	if (Init.offsetdirection == "Right")
 	{
 		Vector3 Right = VectorCrossProduct(Vector3(0, 1, 0), Init.ForwardDirection);
-		Right *1.5f;
+		Right = VectorNormalized(Right);
 		Position += Right;
 	}
 }
