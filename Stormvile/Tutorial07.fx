@@ -58,9 +58,6 @@ struct PS_INPUT
 float4 C5E1v_basicLight(VS_INPUT input)
 {
 
-
-
-
 	float3 P = input.Pos.xyz;
 
 	float3 N = input.Norm;

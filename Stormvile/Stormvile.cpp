@@ -16,46 +16,50 @@
 #include "Player.h"
 #include "Corridor.h"
 #include "StopWatch.h"
-#include "Room.h"
 #include "OBJ_Loader.h"
+Vector3 MODELMINPOINT = Vector3(10000,10000,10000);
+Vector3 MODELMAXPOINT = Vector3(-10000, -10000, -10000);
 int PIndexAmmount;
+int TIndexAmmount;
 /*
 https://github.com/Pindrought/DirectX-11-Engine-VS2017/blob/Tutorial_18/DirectX%2011%20Engine%20VS2017/DirectX%2011%20Engine%20VS2017/Graphics/Graphics.cpp
 
 
 
 */
-objl::Loader loader;
+objl::Loader loader; //3D model loader
 float Height, Width; // Height And Width Values for viewport
 GameObject Camera; //Game Camera 
 GameObject FocusObject;  //Object that Camera Focuses on
 Boundaries StartBlock, EndBlock; // Start And End Block For Level generation
 Player objPlayer; //the Player 
 Corridor objLevel1Corridor[6]; //6 Corridors
-Room objRoom; // 1 Room
 bool setup = true; //Uses to set up levels
 int CurrentFrameRate, FPS; //FPS is the frame rate per secons
 float LevelTime; //Time Taken to complete a level
 float TotalTargets; //Total Number OF Targets in game world
 float TargetsLeft; //Number of targets left
-float TargetsKilled;
-float PercentageKilled;
-double Timer;
-double DeltaTime = 0; 
-XMVECTOR Eye, At, Up;
-Stopwatch Frametimer;
-Stopwatch Leveltimer;
+float TargetsKilled; //Number of Targets Killed
+float PercentageKilled; //Percentage Of Targets Killed 
+double Timer; //FPS TIMER
+double DeltaTime = 0;  //Delta Time
+XMVECTOR Eye, At, Up; //Camera
+Stopwatch Frametimer; //Delta time timer
+Stopwatch Leveltimer; //Level Time
+
+//Text
 std::unique_ptr<DirectX::SpriteBatch> spriteBatch;
-std::unique_ptr<DirectX::SpriteFont> spriteFont;
+std::unique_ptr<DirectX::SpriteFont> spriteFont; //Fonht
 //--------------------------------------------------------------------------------------
 // Structures
 //--------------------------------------------------------------------------------------
+//Creates vertex structure
 struct SimpleVertex
 {
-	Vector3 Pos;
-	Vector2 Tex;
-	Vector3 Normal;
-	Vector4 color;
+	Vector3 Pos; //Vertex Position
+	Vector2 Tex; //Vertex Texture Co-ord
+	Vector3 Normal; //Vertex Normal
+	Vector4 color; //Vertex Colour
 
 };
 //Creates View Buffer
@@ -77,23 +81,23 @@ struct CBChangesEveryFrame
 //Creates Lighting Buffer
 struct CBLightingBuffer
 {
-	XMMATRIX Ignore;
-	XMFLOAT3 globalAmbient;
-	float E = 1;
-	XMFLOAT3 lightColor;
-	float E1 = 1;
-	XMFLOAT3 lightPosition;
-	float E2 = 1;
-	XMFLOAT3 eyePosition;
-	float E3 = 1;
+	XMMATRIX Ignore; //Matrix that can be ignored
+	XMFLOAT3 globalAmbient; //Colour of Ambient
+	float E = 1; //Padding
+	XMFLOAT3 lightColor; //Colour of light 
+	float E1 = 1;//Padding
+	XMFLOAT3 lightPosition; //Postion Of light
+	float E2 = 1;//Padding
+	XMFLOAT3 eyePosition; //Postion of Camera Eye
+	float E3 = 1;//Padding
 	XMFLOAT3 Ke;  //Emissive reflectance
-	float E4 = 1;
+	float E4 = 1;//Padding
 	XMFLOAT3 Ka;  // Ambient reflectance
-	float E5 = 1;
+	float E5 = 1;//Padding
 	XMFLOAT3 Kd; //Diffuse reflectance
-	float E6 = 1;
+	float E6 = 1;//Padding
 	XMFLOAT3 Ks; //Specular reflectance
-	float E7 = 1;
+	float E7 = 1;//Padding
 	float shininess;
 };
 D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
@@ -118,8 +122,10 @@ ID3D11PixelShader*                  g_pPixelShader = nullptr;
 ID3D11InputLayout*                  g_pVertexLayout = nullptr;
 ID3D11Buffer*                       g_pVertexBuffer = nullptr;
 ID3D11Buffer* g_pDiscoveryBuffer = nullptr;
+ID3D11Buffer* g_pTeapotBuffer = nullptr;
 ID3D11Buffer*                       g_pIndexBuffer = nullptr;
 ID3D11Buffer* g_pDiscoveryIndex = nullptr;
+ID3D11Buffer* g_pTeapotIndex = nullptr;
 ID3D11Buffer*                       g_pCBNeverChanges = nullptr;
 ID3D11Buffer*                       g_pCBChangeOnResize = nullptr;
 ID3D11Buffer*                       g_pCBChangesEveryFrame = nullptr;
@@ -132,13 +138,11 @@ ID3D11ShaderResourceView* Wall1Texture;
 ID3D11ShaderResourceView* Wall2Texture;
 ID3D11ShaderResourceView* TurretTexture;
 ID3D11ShaderResourceView* TargetTexture;
-ID3D11ShaderResourceView* Wall3Texture;
+ID3D11ShaderResourceView* Wall3Texture; 
 ID3D11Device*                       Device = nullptr;
 ID3D11DeviceContext*                DevCon = nullptr;
 IDXGISwapChain*                     swapChain = nullptr;
 ID3D11RenderTargetView*             RenderTargetView = nullptr;
-
-
 ID3D11Texture2D*                    DepthStencilBuffer = nullptr;
 ID3D11DepthStencilView*             depthStencelView = nullptr;
 ID3D11DepthStencilState * depthStencilState;
@@ -154,6 +158,9 @@ SimpleVertex *  DiscoveryVertex = NULL;
 WORD *								DiscIndices = NULL;
 
 
+
+SimpleVertex *  TeapotVertex = NULL;
+WORD *								TeapotIndices = NULL;
 
 //--------------------------------------------------------------------------------------
 // Forward declarations
@@ -547,23 +554,125 @@ HRESULT InitDevice()
 	pPSBlob->Release();
 	if (FAILED(hr))
 		return hr;
+	/*
+	//Loading Teapot
+	if (loader.LoadFile("Teapot.obj") == true)
+	{
+		//Create Vertex Buffer
+		const int max = loader.LoadedVertices.size();
+		TeapotVertex = new SimpleVertex[max];
 
+		//Loops through Teapot data
+		for (int i = 0; i < max; i++)
+		{
+			//Set Position
+			TeapotVertex[i].Pos = Vector3(loader.LoadedVertices[i].Position.X, loader.LoadedVertices[i].Position.Y, loader.LoadedVertices[i].Position.Z);
+
+			//Set normal
+			TeapotVertex[i].Normal = Vector3(loader.LoadedVertices[i].Normal.X, loader.LoadedVertices[i].Normal.Y, loader.LoadedVertices[i].Normal.Z);
+
+			//Set Texture
+			TeapotVertex[i].Tex = Vector2(loader.LoadedVertices[i].TextureCoordinate.X, loader.LoadedVertices[i].TextureCoordinate.Y);
+		}
+
+		//loops through Teapot data
+		for (int i = 0; i < max; i++)
+		{
+			//Checks if the vertex position is less then the players minum extent if it is the players min extent gets set to the vertex data
+			if (TeapotVertex[i].Pos.x < MODELMINPOINT.x)
+			{
+				MODELMINPOINT.x = TeapotVertex[i].Pos.x;
+			}
+			if (TeapotVertex[i].Pos.y < MODELMINPOINT.y)
+			{
+				MODELMINPOINT.y = TeapotVertex[i].Pos.y;
+			}
+			if (TeapotVertex[i].Pos.z < MODELMINPOINT.z)
+			{
+				MODELMINPOINT.z = TeapotVertex[i].Pos.z;
+			}
+
+
+
+			//Checks if the vertex position is More then the players maxium extent if it is the players max extent gets set to the vertex data
+			if (TeapotVertex[i].Pos.x > MODELMAXPOINT.x)
+			{
+				MODELMAXPOINT.x = TeapotVertex[i].Pos.x;
+			}
+			if (TeapotVertex[i].Pos.y > MODELMAXPOINT.y)
+			{
+				MODELMAXPOINT.y = TeapotVertex[i].Pos.y;
+			}
+
+			if (TeapotVertex[i].Pos.z > MODELMAXPOINT.z)
+			{
+				MODELMAXPOINT.z = TeapotVertex[i].Pos.z;
+			}
+		}
+
+		//		MODELMAXPOINT = -MODELMINPOINT;
+		D3D11_BUFFER_DESC bd = {};
+		bd.Usage = D3D11_USAGE_DEFAULT;
+		bd.ByteWidth = sizeof(SimpleVertex) * max;
+		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		bd.CPUAccessFlags = 0;
+
+		D3D11_SUBRESOURCE_DATA InitData = {};
+		InitData.pSysMem = TeapotVertex;
+		hr = Device->CreateBuffer(&bd, &InitData, &g_pTeapotBuffer);
+		if (FAILED(hr))
+			return hr;
+
+		// Set vertex buffer
+		UINT stride = sizeof(SimpleVertex);
+		UINT offset = 0;
+		DevCon->IASetVertexBuffers(0, 1, &g_pTeapotBuffer, &stride, &offset);
+
+		//Create Index Buffer 
+		const int IMax = loader.LoadedIndices.size();
+		TeapotIndices = new WORD[IMax];
+		for (int i = 0; i < IMax; i++)
+		{
+			TeapotIndices[i] = loader.LoadedIndices[i];
+		}
+
+		bd.Usage = D3D11_USAGE_DEFAULT;
+		bd.ByteWidth = sizeof(WORD) * IMax;
+		bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+		bd.CPUAccessFlags = 0;
+		InitData.pSysMem = TeapotIndices;
+		hr = Device->CreateBuffer(&bd, &InitData, &g_pTeapotIndex);
+		if (FAILED(hr))
+			return hr;
+		TIndexAmmount = IMax;
+		DevCon->IASetIndexBuffer(g_pTeapotIndex, DXGI_FORMAT_R16_UINT, 0);
+	}
+	*/
+
+	//Loading Discovery 
 	if (loader.LoadFile("Discovery.obj") == true)
 	{
 		//Create Vertex Buffer
 		const int max = loader.LoadedVertices.size();
 		DiscoveryVertex = new SimpleVertex[max];
+
+		//Loops through discoveries data
 		for (int i = 0; i < max; i++)
 		{
+			//Set Position
 			DiscoveryVertex[i].Pos = Vector3(loader.LoadedVertices[i].Position.X, loader.LoadedVertices[i].Position.Y ,loader.LoadedVertices[i].Position.Z);
+
+			//Set normal
 			DiscoveryVertex[i].Normal = Vector3(loader.LoadedVertices[i].Normal.X, loader.LoadedVertices[i].Normal.Y, loader.LoadedVertices[i].Normal.Z);
+
+			//Set Texture
 			DiscoveryVertex[i].Tex = Vector2(loader.LoadedVertices[i].TextureCoordinate.X, loader.LoadedVertices[i].TextureCoordinate.Y);
 		}
 
-
+		//loops through discoveries data
 		for (int i = 0; i < max; i++)
 		{
-
+			//Checks if the vertex position is less then the players minum extent if it is the players min extent gets set to the vertex data
 			if (DiscoveryVertex[i].Pos.x < objPlayer.MODELMINPOINT.x)
 			{
 				objPlayer.MODELMINPOINT.x = DiscoveryVertex[i].Pos.x;
@@ -572,7 +681,6 @@ HRESULT InitDevice()
 			{
 				objPlayer.MODELMINPOINT.y = DiscoveryVertex[i].Pos.y;
 			}
-
 			if (DiscoveryVertex[i].Pos.z < objPlayer.MODELMINPOINT.z)
 			{
 				objPlayer.MODELMINPOINT.z = DiscoveryVertex[i].Pos.z;
@@ -580,7 +688,7 @@ HRESULT InitDevice()
 
 
 
-
+			//Checks if the vertex position is More then the players maxium extent if it is the players max extent gets set to the vertex data
 			if (DiscoveryVertex[i].Pos.x > objPlayer.MODELMAXPOINT.x)
 			{
 				objPlayer.MODELMAXPOINT.x = DiscoveryVertex[i].Pos.x;
@@ -721,6 +829,8 @@ HRESULT InitDevice()
 	// Set primitive topology
 	DevCon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	// Create the constant buffers
+
+	//Creates View Buffer
 	bd.Usage = D3D11_USAGE_DEFAULT;
 	bd.ByteWidth = sizeof(CBNeverChanges);
 	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -728,15 +838,20 @@ HRESULT InitDevice()
 	hr = Device->CreateBuffer(&bd, nullptr, &g_pCBNeverChanges);
 	if (FAILED(hr))
 		return hr;
+
+	//Creates Projection Buffer
 	bd.ByteWidth = sizeof(CBChangeOnResize);
 	hr = Device->CreateBuffer(&bd, nullptr, &g_pCBChangeOnResize);
 	if (FAILED(hr))
 		return hr;
+	
+	//Creates Every Draw Buffer
 	bd.ByteWidth = sizeof(CBChangesEveryFrame);
 	hr = Device->CreateBuffer(&bd, nullptr, &g_pCBChangesEveryFrame);
 	if (FAILED(hr))
 		return hr;
-
+	
+	//Creates Light Buffer
 	bd.ByteWidth = sizeof(CBLightingBuffer);
 	hr = Device->CreateBuffer(&bd, nullptr, &g_pCBLightBuffer);
 	if (FAILED(hr))
@@ -783,6 +898,7 @@ HRESULT InitDevice()
 //--------------------------------------------------------------------------------------
 void CleanupDevice()
 {
+	//Cleans up dx11 resources
 	if (DevCon) DevCon->ClearState();
 	if (BlankTexture) BlankTexture->Release();
 	if (BrickTexture) BrickTexture->Release();
@@ -838,71 +954,103 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		/*CHECKING AGAINST WPARAM AND SETTING VALUES TO TRUE OR FALSE BASED ON KEYPRESSES*/
 	case WM_KEYDOWN:
 		switch (wParam)
-		{
+		{		
+			//F is  being pressed
 		case 70:
 			KeycodeF = true;
 			wParam = 0;
 			break;
+
+			//A is  being pressed
 		case 65:
 			KeycodeA = true;
 			wParam = 0;
 			break;
+
+			//D is  being pressed
 		case 68:
 			KeycodeD = true;
 			wParam = 0;
 			break;
+			//W is  being pressed
 		case 87:
 			KeycodeW = true;
 			wParam = 0;
 			break;
+
+			//S is  being pressed
 		case 83:
 			KeycodeS = true;
 			wParam = 0;
 			break;
+
+			//Shift is  being presed
 		case VK_SHIFT:
 			KeycodeShift = true;
 			wParam = 0;
 			break;
+
+			//Control is  being pressed
 		case 17:
 			KeycodeLControl = true;
 			wParam = 0;
 			break;
+
+			//Q is  being pressed
 		case 81:
 			KeycodeQ = true;
 			wParam = 0;
 			break;
+
+			//E is  being pressed
 		case 69:
 			KeycodeE = true;
 			wParam = 0;
 			break;
+
+			//X is  being pressed
 		case 88:
 			KeycodeX = true;
 			wParam = 0;
 			break;
+
+			//Space is  being pressed
 		case 32:
 			KeycodeSpace = true;
 			wParam = 0;
 			break;
+
+			//Left is  being pressed
 		case 37:
 			KeycodeLeft = true;
 			wParam = 0;
 			break;
+
+			//Right is  being pressed
 		case 39:
 			KeycodeRight = true;
 			wParam = 0;
 			break;
+
+			//Up is  being pressed
 		case 38:
 			KeycodeUp = true;
 			wParam = 0;
 			break;
+
+			//Down is  being pressed
 		case 40:
 			KeycodeDown = true;
 			wParam = 0;
 			break;
+
+			//Plus is  being pressed
 		case 187:
 			KeycodePlus = true;
 			wParam = 0;
 			break;
+
+			//Minus is  being pressed
 		case 189:
 			KeycodeMinus = true;
 			wParam = 0;
@@ -912,70 +1060,104 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_KEYUP:
 		switch (wParam)
 		{
+			
+			//F is not being pressed
 		case 70:
+
 			KeycodeF = false;
 			wParam = 0;
 			break;
+
+			//A is not being pressed
 		case 65:
 			KeycodeA = false;
 			wParam = 0;
 			break;
+			
+			//D is not being pressed
 		case 68:
 			KeycodeD = false;
 			wParam = 0;
 			break;
+           //W is not being pressed
 		case 87:
 			KeycodeW = false;
 			wParam = 0;
 			break;
+
+			//S is not being pressed
 		case 83:
 			KeycodeS = false;
 			wParam = 0;
 			break;
+
+			//Shift is not being presed
 		case VK_SHIFT:
 			KeycodeShift = false;
 			wParam = 0;
 			break;
+
+			//Control is not being pressed
 		case 17:
 			KeycodeLControl = false;
 			wParam = 0;
 			break;
+
+			//Q is not being pressed
 		case 81:
 			KeycodeQ = false;
 			wParam = 0;
 			break;
+
+			//E is not being pressed
 		case 69:
 			KeycodeE = false;
 			wParam = 0;
 			break;
+
+			//X is not being pressed
 		case 88:
 			KeycodeX = false;
 			wParam = 0;
 			break;
+
+			//Space is not being pressed
 		case 32:
 			KeycodeSpace = false;
 			wParam = 0;
 			break;
+
+			//Left is not being pressed
 		case 37:
 			KeycodeLeft = false;
 			wParam = 0;
 			break;
+
+			//Right is not being pressed
 		case 39:
 			KeycodeRight = false;
 			wParam = 0;
 			break;
+
+			//Up is not being pressed
 		case 38:
 			KeycodeUp = false;
 			wParam = 0;
 			break;
+
+			//Down is not being pressed
 		case 40:
 			KeycodeDown = false;
 			wParam = 0;
 			break;
+
+			//Plus is not being pressed
 		case 187:
 			KeycodePlus = false;
 			wParam = 0;
 			break;
+		
+		//Minus is not being pressed
 		case 189:
 			KeycodeMinus = false;
 			wParam = 0;
@@ -988,9 +1170,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 
 
-
+	//Return no message
 	return 0;
 }
+//Draws a gameobject
 void GameObject::Draw()
 {
 
@@ -1008,9 +1191,9 @@ void GameObject::Draw()
 	CBLightingBuffer LightBuffer;
 	
 	//Set Mesh Colours
-	g_vMeshColor.x = 1;//Red;
-	g_vMeshColor.y =  1;//Green;
-	g_vMeshColor.z =  1;// Blue;
+	g_vMeshColor.x =Red;
+	g_vMeshColor.y =  Green;
+	g_vMeshColor.z =   Blue;
 
 	//Set Position Matrix
 	PositionMatrix = XMMatrixTranslation(Position.x,
@@ -1021,10 +1204,16 @@ void GameObject::Draw()
 	//Create Rotation Matrix
 XMMATRIX RotationMatrix;
 	float X, Y, Z;
+
+	//Set X,Y,Z to Object rotation
 	X = Rotation.x;
 	Y = Rotation.y;
 	Z = Rotation.z;
+
+	//SEt rotation matrix to be rotation
 	RotationMatrix = Matrix::CreateFromYawPitchRoll(X, Y, Z);
+
+	//Set scalematrix to be scale
 	XMMATRIX ScaleMatrix = XMMatrixScaling(Scale.x,
 		Scale.y,
 		Scale.z);
@@ -1032,16 +1221,28 @@ XMMATRIX RotationMatrix;
 
 
 
-//Create LightBuffer Paramters
+	//Create LightBuffer Paramters
 	LightBuffer.Ignore = XMMatrixIdentity();
+
+	//Set Ambient
 	LightBuffer.globalAmbient = XMFLOAT3(0, 0, 0);
+
+	//Set light colour
 	LightBuffer.lightColor = XMFLOAT3(0, 1, 0);
+
+	//Set light positon
 	LightBuffer.lightPosition = objPlayer.Position;
+
+	//Get Eye Postion and convert it to vector 3
 	 X = XMVectorGetX(Eye);
 	 Y = XMVectorGetY(Eye);
 	 Z = XMVectorGetZ(Eye);
-	LightBuffer.eyePosition = XMFLOAT3(Red,Green,Blue);
-	LightBuffer.Ke = XMFLOAT3(1, 1, 1);
+
+	 //Set Eye Postion
+	LightBuffer.eyePosition = XMFLOAT3(X,Y,Z);
+	
+	//Set Light Paramaters
+	LightBuffer.Ke = XMFLOAT3(Red, Green,Blue);
 	LightBuffer.Ka = XMFLOAT3(1, 1, 1);
 	LightBuffer.Kd = XMFLOAT3(1, 1, 1);
 	LightBuffer.Ks = XMFLOAT3(1, 1, 1);
@@ -1085,6 +1286,8 @@ XMMATRIX RotationMatrix;
 	//Draw Cube
 	DevCon->DrawIndexed(36, 0, 0);
 }
+
+//Draws the player
 void Player::Draw()
 {
 	UINT stride = sizeof(SimpleVertex);
@@ -1122,32 +1325,50 @@ void Player::Draw()
 
 	//Create Rotation Matrix
 	XMMATRIX RotationMatrix;
+
 	float X, Y, Z;
+
+	//Get players rotation and convert them to radians
 	X = Deg2Rad(Rotation.x);
 	Y = -Deg2Rad(Rotation.y);
 	Z = 0;//(Rotation.z);
+
+	//Set Rotation MAtrix to be Rotation
 	RotationMatrix = Matrix::CreateFromYawPitchRoll(Y,0,X);
+
+	//Set Scale matrix to be Scale
 	XMMATRIX ScaleMatrix = XMMatrixScaling(Scale.x,
 		Scale.y,
 		Scale.z);
 
 
-
-
-	//Create LightBuffer Paramters
+	//Initilaise Ignore as a identity matrix
 	LightBuffer.Ignore = XMMatrixIdentity();
+
+	//Set Ambinet Colour
 	LightBuffer.globalAmbient = XMFLOAT3(0, 0, 0);
+
+	//Set light colour
 	LightBuffer.lightColor = XMFLOAT3(0, 1, 0);
+
+	//Set Light position
 	LightBuffer.lightPosition = objPlayer.Position;
+
+	//Get eye vector and convert it to X,Y,Z
 	X = XMVectorGetX(Eye);
 	Y = XMVectorGetY(Eye);
 	Z = XMVectorGetZ(Eye);
+	
+	//Set Light Positon
 	LightBuffer.eyePosition = XMFLOAT3(X, Y, Z);
+	
+	//Set Light Paramaters
 	LightBuffer.Ke = XMFLOAT3(Red, Green, Blue);
 	LightBuffer.Ka = XMFLOAT3(1, 1, 1);
 	LightBuffer.Kd = XMFLOAT3(1, 1, 1);
 	LightBuffer.Ks = XMFLOAT3(1, 1, 1);
 	LightBuffer.shininess = 1;
+
 
 	//Set Draw Matrice using TRS
 	DrawMatrice = ScaleMatrix * RotationMatrix * PositionMatrix;
@@ -1187,7 +1408,137 @@ void Player::Draw()
 	//Draw Cube
 	DevCon->DrawIndexed(PIndexAmmount, 0, 0);
 }
-bool EndLevel = false;
+
+/*
+void Target::Draw()
+{
+	mODELMAXPOINT = MODELMAXPOINT;
+	mODELMINPOINT = MODELMINPOINT;
+	UINT stride = sizeof(SimpleVertex);
+	UINT offset = 0;
+
+	//Set Vertex Buffer
+	DevCon->IASetVertexBuffers(0, 1, &g_pTeapotBuffer, &stride, &offset);
+
+	//Set Index Buffer
+	DevCon->IASetIndexBuffer(g_pTeapotIndex, DXGI_FORMAT_R16_UINT, 0);
+
+	//Set Camera view
+	g_View = XMMatrixLookAtLH(Eye, At, Up);
+
+	//Create Matrices
+	XMMATRIX DrawMatrice;
+	XMMATRIX PositionMatrix;
+
+	//Create Draw Buffer
+	CBChangesEveryFrame DrawBuffer;
+
+	//Create Light Buffer
+	CBLightingBuffer LightBuffer;
+
+	//Set Mesh Colours
+	g_vMeshColor.x = Red;
+	g_vMeshColor.y = Green;
+	g_vMeshColor.z = Blue;
+
+	//Set Position Matrix
+	PositionMatrix = XMMatrixTranslation(Position.x,
+		Position.y,
+		Position.z);
+
+
+	//Create Rotation Matrix
+	XMMATRIX RotationMatrix;
+
+	float X, Y, Z;
+
+	//Get players rotation and convert them to radians
+	X = 0;
+	Y = 0;
+	Z = 0;//(Rotation.z);
+
+		  //Set Rotation MAtrix to be Rotation
+	RotationMatrix = Matrix::CreateFromYawPitchRoll(0, 0, 0);
+
+	//Set Scale matrix to be Scale
+	XMMATRIX ScaleMatrix = XMMatrixScaling(Scale.x,
+		Scale.y,
+		Scale.z);
+
+
+	//Initilaise Ignore as a identity matrix
+	LightBuffer.Ignore = XMMatrixIdentity();
+
+	//Set Ambinet Colour
+	LightBuffer.globalAmbient = XMFLOAT3(0, 0, 0);
+
+	//Set light colour
+	LightBuffer.lightColor = XMFLOAT3(0, 1, 0);
+
+	//Set Light position
+	LightBuffer.lightPosition = objPlayer.Position;
+
+	//Get eye vector and convert it to X,Y,Z
+	X = XMVectorGetX(Eye);
+	Y = XMVectorGetY(Eye);
+	Z = XMVectorGetZ(Eye);
+
+	//Set Light Positon
+	LightBuffer.eyePosition = XMFLOAT3(X, Y, Z);
+
+	//Set Light Paramaters
+	LightBuffer.Ke = XMFLOAT3(Red, Green, Blue);
+	LightBuffer.Ka = XMFLOAT3(1, 1, 1);
+	LightBuffer.Kd = XMFLOAT3(1, 1, 1);
+	LightBuffer.Ks = XMFLOAT3(1, 1, 1);
+	LightBuffer.shininess = 1;
+
+
+	//Set Draw Matrice using TRS
+	DrawMatrice = ScaleMatrix * RotationMatrix * PositionMatrix;
+
+	//Set Draw Buffer mWorld
+	DrawBuffer.mWorld = XMMatrixTranspose(DrawMatrice);
+
+	//Set View (Camera)
+	cbNeverChanges.mView = XMMatrixTranspose(g_View);
+
+	//Updating Buffers
+	DevCon->UpdateSubresource(g_pCBChangesEveryFrame, 0, nullptr, &DrawBuffer, 0, 0);
+	DevCon->UpdateSubresource(g_pCBNeverChanges, 0, nullptr, &cbNeverChanges, 0, 0);
+	DevCon->UpdateSubresource(g_pCBLightBuffer, 0, nullptr, &LightBuffer, 0, 0);
+
+	//Set Vertex Shader
+	DevCon->VSSetShader(g_pVertexShader, nullptr, 0);
+
+	//Set Vertex Shader Buffers
+	DevCon->VSSetConstantBuffers(0, 1, &g_pCBNeverChanges);
+	DevCon->VSSetConstantBuffers(1, 1, &g_pCBChangeOnResize);
+	DevCon->VSSetConstantBuffers(2, 1, &g_pCBChangesEveryFrame);
+	DevCon->VSSetConstantBuffers(3, 1, &g_pCBLightBuffer);
+
+	//Set Pixel Shader 
+	DevCon->PSSetShader(g_pPixelShader, nullptr, 0);
+
+	//Set Pixel Shader Constant Buffer
+	DevCon->PSSetConstantBuffers(2, 1, &g_pCBChangesEveryFrame);
+
+	//Set Texture
+	DevCon->PSSetShaderResources(0, 1, &DrawTexture);
+
+	//Set Sampler
+	DevCon->PSSetSamplers(0, 1, &g_pSamplerLinear);
+
+	//Draw Cube
+	DevCon->DrawIndexed(TIndexAmmount, 0, 0);
+}
+*/
+
+
+int level = 2; //Tracks what level the player is on
+bool EndLevel = false; //Bool to determine if a level has ended
+
+//Function to handle the first Level
 void Level1()
 {
 	/*Keyboard checks*/
@@ -1195,84 +1546,126 @@ void Level1()
 	//If W is being pressed set player.W to true
 	if (KeycodeW == true)
 	{
+
+		//Set Player.w to true
 		objPlayer.W = true;
 	}
+	
+	//If W is not being pressed
 	else if (KeycodeW == false)
 	{
+		
+		//Set player.w to false
 		objPlayer.W = false;
 	}
 
 	//If A is being pressed set player.A to true
 	if (KeycodeA == true)
 	{
+		
+		//Set player. a to ture
 		objPlayer.A = true;
-
 	}
+
+	//If a is not being pressed
 	else if (KeycodeA == false)
 	{
+		
+		//Set Player.a to false
 		objPlayer.A = false;
 	}
 	
 	//If S is being pressed set player.S to true
 	if (KeycodeS == true)
 	{
+
+		//set Player.s to true
 		objPlayer.S = true;
 	}
+
+	//if s is not being pressed
 	else if (KeycodeS == false)
 	{
+		
+		//Set player.s to false
 		objPlayer.S = false;
 	}
 
 	//If D is being pressed set player.D to true
 	if (KeycodeD == true)
 	{
+
+		//set player.d to true
 		objPlayer.D = true;
 	}
+
+	// if D is not being pressed
 	else if (KeycodeD == false)
 	{
+
+		//Set player.d to false
 		objPlayer.D = false;
 	}
 
 	//If UP is being pressed set player.UP to true
 	if (KeycodeUp == true)
 	{
+
+		//Set player.up to true
 		objPlayer.UP = true;
 	}
+
+	//if up is not being pressed
 	else if (KeycodeUp == false)
-	{
+	{ 
+		
+		//Set player.up to false
 		objPlayer.UP = false;
 	}
 
 	//If RIGHT is being pressed set player.RIGHT to true
 	if (KeycodeRight == true)
-
 	{
+		//Set player.right to true
 		objPlayer.RIGHT = true;
 	}
+
+	//if right is not being pressed
 	else if (KeycodeRight == false)
 	{
+		//Set Player.right to false
 		objPlayer.RIGHT = false;
 	}
 
 	//If DOWN is being pressed set player.DOWN to true
 	if (KeycodeDown == true)
-
 	{
+
+		//set player.down to trye
 		objPlayer.DOWN = true;
 	}
+
+	//if down is not being pressed
 	else if (KeycodeDown == false)
 	{
+
+		//Set player.down to false
 		objPlayer.DOWN = false;
 	}
 
 	//If LEFT is being pressed set player.LEFT to true
 	if (KeycodeLeft == true)
-
 	{
+
+		//Set player.left to true 
 		objPlayer.LEFT = true;
 	}
+	
+	//If left is not being pressed
 	else if (KeycodeLeft == false)
 	{
+
+		//Set player.left to false
 		objPlayer.LEFT = false;
 	}
 
@@ -1280,10 +1673,13 @@ void Level1()
 	//If PLUS is being pressed set player.PLUS to true
 	if (KeycodePlus == true)
 	{
+		
+		//set player.plus to true
 		objPlayer.PLUS = true;
 	}
 	else
 	{
+		//Set player.plus to false
 		objPlayer.PLUS = false;
 	}
 
@@ -1291,60 +1687,60 @@ void Level1()
 	//If MINUS is being pressed set player.MINUS to true
 	if (KeycodeMinus == true)
 	{
+
+		//Set player.minus to ture
 		objPlayer.MINUS = true;
 	}
 	else
 	{
+
+		//Set Player.minus to false
 		objPlayer.MINUS = false;
 	}
 
 	//If F is being pressed set player.F to true
 	if (KeycodeF == true)
 	{
+
+		//set Player.f to true
 		objPlayer.F = true;
 	}
 	else
 	{
+
+		//Set player.f to false
 		objPlayer.F = false;
-	}
-
-	//If Q is being pressed set player.Q to true
-	if (KeycodeQ == true)
-	{
-		objPlayer.Q = true;
-	}
-	else if (KeycodeQ == false)
-	{
-		objPlayer.Q = false;
-	}
-
-	//If E is being pressed set player.E to true
-	if (KeycodeE == true)
-	{
-		objPlayer.E = true;
-	}
-	else if (KeycodeE == false)
-	{
-		objPlayer.E = false;
 	}
 
 	//If SPACE is being pressed set player.SPACE to true
 	if (KeycodeSpace == true)
 	{
+
+		//Set player.space ot true
 		objPlayer.SPACE = true;
 	}
+
+	//If Space is not being pressed
 	else if (KeycodeSpace == false)
 	{
+
+		//Set Player.Space to false
 		objPlayer.SPACE = false;
 	}
-
 
 	//If SHIFT is being pressed set player.SHIFT to true
 	if (KeycodeShift == true)
 	{
+
+		//Set Player.Shift
 		objPlayer.SHIFT = true;
 	}
-	else if (KeycodeShift == false) {
+
+	//If Shift is not being pressed
+	else if (KeycodeShift == false) 
+	{
+	
+		//Set Player.Shift to false
 		objPlayer.SHIFT = false;
 	}
 
@@ -1352,19 +1748,32 @@ void Level1()
 	//If LControl is being pressed set player.CONTROL to true
 	if (KeycodeLControl == true)
 	{
+
+		//Set Player.Control to true
 		objPlayer.CONTROL = true;
 	}
-	else if (KeycodeLControl == false) {
+
+	//If x is not being pressed
+	else if (KeycodeLControl == false) 
+	{
+	
+		//Set Player.Control to false
 		objPlayer.CONTROL = false;
 	}
 
 	//If X is being pressed set player.X to true
 	if (KeycodeX == true)
 	{
+		
+		//Set Player.x to true
 		objPlayer.X = true;
 	}
+
+	//If keyx is not being pressed
 	else if (KeycodeX == false)
 	{
+		
+		//Set Player.x to false
 		objPlayer.X = false;
 	}
 
@@ -1374,257 +1783,421 @@ void Level1()
 	{
 		//Initialsing Start Block
 		BoundariesInit Start;
+
+		//Set Position
 		Start.Position = Vector3(0, 0, 0);
+
+		//Set Rotation
 		Start.Rotation;
+
+		//Set Scale
 		Start.Scale;
-		Start.colourR;
-		Start.colourG;
-		Start.colourB;
+
+        //Set colour
+		Start.colourR =0;
+		Start.colourG =1;
+		Start.colourB =0;
+
+		//Set target chance
 		Start.targetchance = 0;
 		Start.turretchance = 0;
+
+		//Set Walls
 		Start.leftWall = true;
 		Start.rightWall = true;
 		Start.frontwall = false;
 		Start.backwall = true;
 		Start.roof = true;
 		Start.floor = true;
-		Start.DrawTexture = BlankTexture;
+
+		//Set Texture
+		Start.DrawTexture = MarbleTexture;
 		Start.TurretTexture = TargetTexture;
 		Start.TargetTexture = TargetTexture;
+
+		//Set Startblock to start
 		StartBlock.Setup(Start);
 
 		//Initialising Player
 		playerInit player;
+
+		//Set Postion to be start block
 		player.Position = StartBlock.Position;
+
+		//Increase Postion y by 5
 		player.Position.y += 5;
+
+		//Set Scale 
 		player.Scale = Vector3(1, 1, 1);
-		player.colourB = 1;
+
+		//Set Colour
+		player.colourR = 0;
 		player.colourG = 1;
 		player.colourB = 1;
+
+		//Set Health
 		player.Health = 100;
+
+		//Set Rotation
 		player.Rotation = Vector3(0, 0, 0);
+
+		//Set Shots 
 		player.Shots = 0;
+
+		//Set texture
 		player.DrawTexture = BlankTexture;
+
+		//Set player to player
 		objPlayer.Setup(player);
 
-		//Initialising Corridor 0
+		//Initialising Corridor 1
 		corridorsInit Corridor1;
+
+		//Set Postion to Start Block
 		Corridor1.Position = StartBlock.Position;
+
+		//Increase Postion X by 10
 		Corridor1.Position.x += 10;
+
+		//Set Rotation
 		Corridor1.Rotation;
+
+		//Set Scale
 		Corridor1.Scale;
-		Corridor1.colourR;
-		Corridor1.colourG;
-		Corridor1.colourB;
+
+		//Set Colour
+		Corridor1.colourR =1;
+		Corridor1.colourG =1;
+		Corridor1.colourB =1;
 		Corridor1.floorLength = rand() % 50 + 2;//Randomnises Corridor Length
-		Corridor1.CorridorDirection = "Forward";
+		Corridor1.CorridorDirection = "Forward"; //Set Direction
+
+		//Set Textire
 		Corridor1.DrawTexture = MarbleTexture;
 		Corridor1.TurretTexture = TargetTexture;
 		Corridor1.TargetTexture = TargetTexture;
+
+		//Set First Block Paramaters
 		Corridor1.FirstBlock.leftWall = true;
 		Corridor1.FirstBlock.rightWall = true;
 		Corridor1.FirstBlock.frontwall = false;
 		Corridor1.FirstBlock.backwall = false;
 		Corridor1.FirstBlock.roof = true;
 		Corridor1.FirstBlock.floor = true;
+
+		//Set Last Block Paramaters
 		Corridor1.LastBlock.leftWall = true;
 		Corridor1.LastBlock.rightWall = true;
 		Corridor1.LastBlock.frontwall = false;
 		Corridor1.LastBlock.backwall = false;
 		Corridor1.LastBlock.roof = true;
 		Corridor1.LastBlock.floor = true;
+
+		//Set Corridor 1 to corridor 1
 		objLevel1Corridor[0].Setup(Corridor1);
-		setup = false;
 
+		//Initialising Corridor 2
 
-
-		//Initialising Corridor 1
+		//Set length to be corridor 1 last block
 		int Length = objLevel1Corridor[0].FloorLength;
+
+		//Set Postion to be corridor 1 last block 
 		Corridor1.Position = objLevel1Corridor[0].objBoundaries[Length - 1].Position;
+		
+		//Increase x by 10
 		Corridor1.Position.x += 10;
+
+		//Set Rotation
 		Corridor1.Rotation;
+
+		//Set Scale
 		Corridor1.Scale;
-		Corridor1.colourR;
-		Corridor1.colourG;
-		Corridor1.colourB;
+
+		//Set Colour
+		Corridor1.colourR =1;
+		Corridor1.colourG =1;
+		Corridor1.colourB =1;
+
 		Corridor1.floorLength = rand() % 50 + 2;//Randomnises Corridor Length
-		Corridor1.CorridorDirection = "Right";
+		Corridor1.CorridorDirection = "Right"; //Set Corridor Direction
+
+		//Set Textures
 		Corridor1.DrawTexture = Wall1Texture;
 		Corridor1.TurretTexture = TargetTexture;
 		Corridor1.TargetTexture = TargetTexture;
+
+		//Set First Block Paramaters
 		Corridor1.FirstBlock.leftWall = true;
 		Corridor1.FirstBlock.rightWall = false;
 		Corridor1.FirstBlock.frontwall = true;
 		Corridor1.FirstBlock.backwall = false;
 		Corridor1.FirstBlock.roof = true;
 		Corridor1.FirstBlock.floor = true;
+
+		//Set Last Block Paramaters
 		Corridor1.LastBlock.leftWall = false;
 		Corridor1.LastBlock.rightWall = true;
 		Corridor1.LastBlock.frontwall = true;
 		Corridor1.LastBlock.backwall = true;
 		Corridor1.LastBlock.roof = false;
 		Corridor1.LastBlock.floor = true;
+
+		//Set Corridor 2 to corridor 1
 		objLevel1Corridor[1].Setup(Corridor1);
 
 
-		//Initialising Corridor 2
+		//Initialising Corridor 3
+
+		//Set length to be corrdior 2 length
 		Length = objLevel1Corridor[1].FloorLength;
+
+		//Set Postion to be Corridor 2 Last Block
 		Corridor1.Position = objLevel1Corridor[1].objBoundaries[Length - 1].Position;
+
+		//Add nothing to x
 		Corridor1.Position.x += 0;
+
+		//Set Rotation
 		Corridor1.Rotation;
+
+		//Set Scale
 		Corridor1.Scale;
-		Corridor1.colourR;
-		Corridor1.colourG;
-		Corridor1.colourB;
+
+		//Set Colour
+		Corridor1.colourR =1;
+		Corridor1.colourG =1;
+		Corridor1.colourB =1;
+
+
 		Corridor1.floorLength = rand() % 50 + 2;//Randomnises Corridor Length
-		Corridor1.CorridorDirection = "Up";
+		Corridor1.CorridorDirection = "Up"; //Set Direction
+
+		//Set Textures
 		Corridor1.DrawTexture = Wall2Texture;
 		Corridor1.TurretTexture = TargetTexture;
 		Corridor1.TargetTexture = TargetTexture;
+
+		//Set First Block Paramaters
 		Corridor1.FirstBlock.leftWall = false;
 		Corridor1.FirstBlock.rightWall = false;
 		Corridor1.FirstBlock.frontwall = false;
 		Corridor1.FirstBlock.backwall = false;
 		Corridor1.FirstBlock.roof = false;
 		Corridor1.FirstBlock.floor = false;
+
+		//Set Last Block Paramters
 		Corridor1.LastBlock.leftWall = true;
 		Corridor1.LastBlock.rightWall = true;
 		Corridor1.LastBlock.frontwall = true;
 		Corridor1.LastBlock.backwall = false;
 		Corridor1.LastBlock.roof = true;
 		Corridor1.LastBlock.floor = false;
+
+		//Set Corridor 3 to Corridor 1
 		objLevel1Corridor[2].Setup(Corridor1);
 
-		//Initialising Corridor 3
+		//Initialising Corridor 4
+
+		//Set Length to Corridor 3 Length
 		Length = objLevel1Corridor[2].FloorLength;
+	
+		//Set Postion to be Corridor 3 end block
 		Corridor1.Position = objLevel1Corridor[2].objBoundaries[Length - 1].Position;
+		
+		//Subtract x by 10
 		Corridor1.Position.x -= 10;
+
+		//Set Rotation
 		Corridor1.Rotation;
+
+		//Set Scale
 		Corridor1.Scale;
-		Corridor1.colourR;
-		Corridor1.colourG;
-		Corridor1.colourB;
+
+		//Set colour
+		Corridor1.colourR =1;
+		Corridor1.colourG =1;
+		Corridor1.colourB =1;
+
+
 		Corridor1.floorLength = rand() % 50 + 2; //Randomnises Corridor Length
-		Corridor1.CorridorDirection = "Backward";
+		Corridor1.CorridorDirection = "Backward"; //Set corridor Direciton
+
+		//Set Texture
 		Corridor1.DrawTexture = Wall3Texture;
 		Corridor1.TurretTexture = TargetTexture;
 		Corridor1.TargetTexture = TargetTexture;
+
+		//Set First Block Paramaters
 		Corridor1.FirstBlock.leftWall = true;
 		Corridor1.FirstBlock.rightWall = true;
 		Corridor1.FirstBlock.frontwall = false;
 		Corridor1.FirstBlock.backwall = false;
 		Corridor1.FirstBlock.roof = true;
 		Corridor1.FirstBlock.floor = true;
+
+		//Set Last Block Paramters
 		Corridor1.LastBlock.leftWall = true;
 		Corridor1.LastBlock.rightWall = false;
 		Corridor1.LastBlock.frontwall = false;
 		Corridor1.LastBlock.backwall = true;
 		Corridor1.LastBlock.roof = true;
 		Corridor1.LastBlock.floor = true;
+
+		//Set Corridor 4 to Corridor 1
 		objLevel1Corridor[3].Setup(Corridor1);
 
+		//Initialising Corridor 5
 
-
-		roomInit Room1;
+		//Set length to be Corridor 4s Length
 		Length = objLevel1Corridor[3].FloorLength;
-		Room1.Position = objLevel1Corridor[3].objBoundaries[Length - 1].Position;
-		Room1.Position.z += 10;
-		Room1.Rotation;
-		Room1.Scale;
-		Room1.colourR;
-		Room1.colourG;
-		Room1.colourB;
-		Room1.targetchance;
-		Room1.turretchance;
-		Room1.DrawTexture = MarbleTexture;
-		Room1.TurretTexture = TargetTexture;
-		Room1.TargetTexture = TargetTexture;
-		objRoom.Setup(Room1);
 
-
-		//Initialising Corridor 4
-		Length = objLevel1Corridor[3].FloorLength;
+		//Set Postion to be Corridor 4s last block
 		Corridor1.Position = objLevel1Corridor[3].objBoundaries[Length - 1].Position;
+
+		//Decrease Z postion by 10
 		Corridor1.Position.z -= 10;
+
+		//Set Rotation
 		Corridor1.Rotation;
+
+		//Set Scale
 		Corridor1.Scale;
-		Corridor1.colourR;
-		Corridor1.colourG;
-		Corridor1.colourB;
+
+		//Set Colour
+		Corridor1.colourR =1;
+		Corridor1.colourG =1;
+		Corridor1.colourB =1;
+
+
 		Corridor1.floorLength = rand() % 50 + 2;//Randomnises Corridor Length
 		Corridor1.CorridorDirection = "Right";
+
+		//Set Textures
 		Corridor1.DrawTexture = BrickTexture;
 		Corridor1.TurretTexture = TargetTexture;
 		Corridor1.TargetTexture = TargetTexture;
+
+		//Set First Block Paramaters
 		Corridor1.FirstBlock.leftWall = false;
 		Corridor1.FirstBlock.rightWall = false;
 		Corridor1.FirstBlock.frontwall = true;
 		Corridor1.FirstBlock.backwall = true;
 		Corridor1.FirstBlock.roof = true;
 		Corridor1.FirstBlock.floor = true;
+
+		//Set Last Block Paramters
 		Corridor1.LastBlock.leftWall = false;
 		Corridor1.LastBlock.rightWall = true;
 		Corridor1.LastBlock.frontwall = true;
 		Corridor1.LastBlock.backwall = true;
 		Corridor1.LastBlock.roof = true;
 		Corridor1.LastBlock.floor = false;
+		
+		//Setup Corridor 5 to be corridor 1
 		objLevel1Corridor[4].Setup(Corridor1);
 
-
-
-		//Initialising Corridor 5
+		//Initialising Corridor 6
+		
+		//Set Length to be Corridor 5s length
 		Length = objLevel1Corridor[4].FloorLength;
+		
+		//Sets Postion to be Corridor 5s Last Block
 		Corridor1.Position = objLevel1Corridor[4].objBoundaries[Length - 1].Position;
+		
+		//Decrease Height by 10
 		Corridor1.Position.y -= 10;
+		
+		//Set Rotation
 		Corridor1.Rotation;
+		
+		
+		//Set Scale
 		Corridor1.Scale;
-		Corridor1.colourR;
-		Corridor1.colourG;
-		Corridor1.colourB;
+
+		//Set Colours
+		Corridor1.colourR =1;
+		Corridor1.colourG =1;
+		Corridor1.colourB =1;
+
+
 		Corridor1.floorLength = rand() % 50 + 2; //Randomnises Corridor Length
-		Corridor1.CorridorDirection = "Down";
+		Corridor1.CorridorDirection = "Down"; //Set Corridor Direction
+
+		//Set Textures
 		Corridor1.DrawTexture = MarbleTexture;
 		Corridor1.TurretTexture = TargetTexture;
 		Corridor1.TargetTexture = TargetTexture;
+
+		//Set First Block Paramaters
 		Corridor1.FirstBlock.leftWall = true;
 		Corridor1.FirstBlock.rightWall = true;
 		Corridor1.FirstBlock.frontwall = true;
 		Corridor1.FirstBlock.backwall = true;
 		Corridor1.FirstBlock.roof = false;
 		Corridor1.FirstBlock.floor = false;
+
+		//Set Last Block Paramters
 		Corridor1.LastBlock.leftWall = true;
 		Corridor1.LastBlock.rightWall = true;
 		Corridor1.LastBlock.frontwall = true;
 		Corridor1.LastBlock.backwall = true;
 		Corridor1.LastBlock.roof = false;
 		Corridor1.LastBlock.floor = false;
+
+		//Set Corridor 6 to Corridor 1 
 		objLevel1Corridor[5].Setup(Corridor1);
 
 
 		//Creates End Block 
 		BoundariesInit End;
+		
+		//Set Length to be Corridor 6s length
 		Length = objLevel1Corridor[5].FloorLength;
+
+		//Set postion to be corridor 6s last block
 		End.Position = objLevel1Corridor[5].objBoundaries[Length - 1].Position;
+
+		//Decrease the height by 10
 		End.Position.y -= 10;
+
+		//Set Rotation
 		End.Rotation;
+
+		//Set Scale
 		End.Scale;
+
+		//Set Colour
 		End.colourR = 0;
 		End.colourG = 1;
 		End.colourB = 0;
+
+		//Set Target and turret chance
 		End.targetchance = 0;
 		End.turretchance = 0;
+
+		//Set End Walls
 		End.leftWall = true;
 		End.rightWall = true;
 		End.frontwall = true;
 		End.backwall = true;
 		End.roof = false;
 		End.floor = true;
+
+		//Set Textures
 		End.DrawTexture = BlankTexture;
 		End.TurretTexture = TargetTexture;
 		End.TargetTexture = TargetTexture;
+		
+		//Setup Endblock to end
 		EndBlock.Setup(End);
+		
+		//Restart Level Timer
 		Leveltimer.Restart();
+
+		//Start Level Timer
 		Leveltimer.Start();
+
+		//Set Total Targets to 0
 		TotalTargets = 0;
 		//Checks how many targets are alive in game world at start up
 		for (int c = 0; c < 6; c++)
@@ -1641,17 +2214,10 @@ void Level1()
 				}
 			}
 		}
-		for (int i = 0; i < 100; i++)
-		{
-			if (objRoom.ObjBoundaries[i].TARGET == true)
-			{
-				TotalTargets++;
-			}
-		}
-		if (objRoom.Entrance.TARGET == true)
-		{
-			TotalTargets++;
-		}
+		
+		
+		//Finish Level 1 Setup
+		setup = false;
 	}
 
 
@@ -1671,66 +2237,6 @@ void Level1()
 			}
 		}
 	}
-	for (int i = 0; i < 100; i++)
-	{
-		if (objRoom.ObjBoundaries[i].TARGET == true)
-		{
-			TargetsLeft++;
-		}
-	}
-	if (objRoom.Entrance.TARGET == true)
-	{
-		TargetsLeft++;
-	}
-
-	////Bullets VS Targets Room Collision Checks
-	//for (int B = 0; B < 50; B++)
-	//{
-	//	for (int i = 0; i < 100; i++)
-	//	{
-
-	//		//Checking for Gun Left
-	//		if (objPlayer.objGunLeft.objbulletlist[B].Alive == true)
-	//		{
-	//			for (int F = 0; F < 100; F++)
-	//			{
-
-	//				//Checking Target is alive
-	//				if (objRoom.ObjBoundaries[F].objTarget.Health >= 0)
-	//				{
-
-	//					//Checking for colliision	
-	//					if (CollisionBox::Intersects(objPlayer.objGunLeft.objbulletlist[B], objRoom.ObjBoundaries[F].objTarget))
-	//					{
-
-	//						//Killing Target
-	//						objRoom.ObjBoundaries[F].objTarget.Health = 0;
-	//					}
-	//				}
-	//			}
-	//		}
-	//		//Checking for gun right 
-	//		if (objPlayer.objGunRight.objbulletlist[B].Alive == true)
-	//		{
-	//			for (int F = 0; F < 100; F++)
-	//			{
-
-	//				//Checking Target is alive
-	//				if (objRoom.ObjBoundaries[F].objTarget.Health >= 0)
-	//				{
-
-	//					//Checking for collision
-	//					if (CollisionBox::Intersects(objPlayer.objGunRight.objbulletlist[B], objRoom.ObjBoundaries[F].objTarget))
-	//					{
-
-	//						//KillingTarget
-	//						objRoom.ObjBoundaries[F].objTarget.Health = 0;
-	//					}
-	//				}
-	//			}
-	//		}
-	//	}
-	//}
 	//Bullets VS Targets Corridor Collsion Checks 
 	for (int C = 0; C < 6; C++)
 	{
@@ -1938,9 +2444,6 @@ void Level1()
 			EndLevel = true;
 		}
 	}
-
-
-
 	//Player VS Boundaries Collsion Check for all corridors
 	for (int C = 0; C < 6; C++)
 	{
@@ -2044,16 +2547,34 @@ void Level1()
 	objPlayer.Update();
 	
 	//Set Camera Eye, At and Up
+
+	//Set the Camera Postion to be - forward direction
 	Camera.Position.x = -objPlayer.ForwardDirection.x;
 	Camera.Position.y = -objPlayer.ForwardDirection.y;
 	Camera.Position.z = -objPlayer.ForwardDirection.z;
+
+	//Multiple Cameras Postion By 3
 	Camera.Position = Camera.MultiplyVector(Camera.Position, 3);
-	Camera.Position.y += 1;
-	Camera.Position = Camera.VectorAdd(Camera.Position, objPlayer.Position);
+
+	//Add Up direction to the cameras postion, this creates a 3rd person perspective
+	Camera.Position += objPlayer.UpDirection;
+	
+	//Add Player Position to Camera Position
+	Camera.Position += objPlayer.Position;
+	
+	//Set Eye to camera postion
 	Eye = XMVectorSet(Camera.Position.x, Camera.Position.y, Camera.Position.z, 0.0f);
+	
+	//Set at to players position
 	At = XMVectorSet(objPlayer.Position.x, objPlayer.Position.y, objPlayer.Position.z, 0.0f);
-	Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	
+	//Set up direction to players up direction
+	Up = XMVectorSet(objPlayer.UpDirection.x, objPlayer.UpDirection.y, objPlayer.UpDirection.z, 0.0f);
+	
+	//Set Camera View
 	g_View = XMMatrixLookAtLH(Eye, At, Up);
+
+	//Update View Matrix
 	cbNeverChanges.mView = XMMatrixTranspose(g_View);
 
 	//Run Corridor Updates
@@ -2063,21 +2584,24 @@ void Level1()
 	objLevel1Corridor[3].Update();
 	objLevel1Corridor[4].Update();
 	objLevel1Corridor[5].Update();
-	objRoom.Update();
 
 	//Update Start Block
 	StartBlock.Update();
 	
 	//Update End Block
 	EndBlock.Update();
+
+	//Draw Player
 	objPlayer.Draw();
+
 	//If the player is dead restart the level
 	if (objPlayer.Health == 0)
 	{
-		setup = true;
+		setup = true; //Reset the level
 	}
 }
-/*MAIN RENDER LOOP*/
+
+//Main Render Loop
 void Render()
 {
 	UINT stride = sizeof(SimpleVertex);
@@ -2088,11 +2612,12 @@ void Render()
 	FrameTime.Start();
 
 
-//Calculates Targets Killed
+    //Calculates Targets Killed
 	TargetsKilled = TotalTargets - TargetsLeft; 
 
 	//Calculates TargetsLeft
 	TargetsLeft = TotalTargets - TargetsKilled;
+	
 	//Create ViewPort
 	D3D11_VIEWPORT vp;
 	vp.Width = Width;
@@ -2103,6 +2628,7 @@ void Render()
 	vp.TopLeftY = 0;
 	
 	//Reseting States
+	
 	//Clear Screen
 	DevCon->ClearRenderTargetView(RenderTargetView, Colors::MidnightBlue);
 	DevCon->ClearDepthStencilView(depthStencelView, D3D11_CLEAR_STENCIL || D3D11_CLEAR_DEPTH, 1.0f, 0);
@@ -2139,33 +2665,38 @@ void Render()
 	
 	//Set Players Delta Time
 	objPlayer.DeltaTime = DeltaTime;
+	
+	//If Endlevel is false 
 	if (EndLevel == false)
 	{
 		//Runs Level1 Update Function
 		Level1();
 		//Pluses one per frame
 		CurrentFrameRate += 1;
+	
 		//Set 
 		Timer = Frametimer.ElapsedSeconds();
+
+
 		//Frame Per Second Calculation, for every 1 second it will log the current frame rate
 		if (Timer >= 1)
 		{
-			FPS = CurrentFrameRate;
-			CurrentFrameRate = 0;
-			Frametimer.Restart();
-			Timer = 0;
+			FPS = CurrentFrameRate; //Sets FPS to current framerate
+			CurrentFrameRate = 0; //Sets current framerate to 0 
+			Frametimer.Restart(); //Restarts frametimer
+			Timer = 0; //Sets timer to 0
 		}
+
 		//Combines Frame Rate to text
 		wstring TFPS = std::to_wstring(FPS);
 		wstring TText = L"Frame Rate = ";
-
 		TText += TFPS;
 		const wchar_t *Text = TText.c_str();
+
 		//Combines Frame Time To TExt
 		DeltaTime = FrameTime.ElapsedSeconds();
 		wstring DET = std::to_wstring(DeltaTime);
 		wstring DText = L"Frame Time = ";
-
 		DText += DET;
 		const wchar_t *Text2 = DText.c_str();
 
@@ -2215,24 +2746,29 @@ void Render()
 		//Text Draw Stage
 		spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
 		spriteFont = std::make_unique<DirectX::SpriteFont>(Device, L"Text/comic_sans_ms_16.spritefont"); //Setting Font
-		spriteBatch->Begin();
-		spriteFont->DrawString(spriteBatch.get(), L"Storvile Space Corridor Shooter -BY UP814853(Kieran Grist)", XMFLOAT2(0, 0), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
+		spriteBatch->Begin(); //Begins Text Render
+		spriteFont->DrawString(spriteBatch.get(), L"Storvile Space Corridor Shooter -BY UP814853(Kieran Grist)", XMFLOAT2(0, 0), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Draw Watermark
 		spriteFont->DrawString(spriteBatch.get(), Text, XMFLOAT2(0, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Rate
 		spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 100), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Time
-																																					 //spriteFont->DrawString(spriteBatch.get(), Text2, XMFLOAT2(0, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Drawing Frame Time
-		spriteFont->DrawString(spriteBatch.get(), Text3, XMFLOAT2(1550, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), Text4, XMFLOAT2(1550, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), Text5, XMFLOAT2(1550, 100), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), Text6, XMFLOAT2(1550, 150), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), Text7, XMFLOAT2(1550, 200), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), Text8, XMFLOAT2(1550, 250), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), L"X", XMFLOAT2(900, 150), DirectX::Colors::Red, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteFont->DrawString(spriteBatch.get(), L"Arrow Keys Move ship \n WASD Rotate Ship \n Space Ship UP \n LControl Ship Down \n F Fire Lasers", XMFLOAT2(0, 750), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteBatch->End();
+		spriteFont->DrawString(spriteBatch.get(), Text3, XMFLOAT2(1550, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); // Draw Shots Fired
+		spriteFont->DrawString(spriteBatch.get(), Text4, XMFLOAT2(1550, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Draw Level Time 
+		spriteFont->DrawString(spriteBatch.get(), Text5, XMFLOAT2(1550, 100), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Draw Total Targets
+		spriteFont->DrawString(spriteBatch.get(), Text6, XMFLOAT2(1550, 150), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); // Draws Targets Killed
+		spriteFont->DrawString(spriteBatch.get(), Text7, XMFLOAT2(1550, 200), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Draws Targets LEft
+		spriteFont->DrawString(spriteBatch.get(), Text8, XMFLOAT2(1550, 250), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Draws Percentage Left
+		spriteFont->DrawString(spriteBatch.get(), L"X", XMFLOAT2(940, 100), DirectX::Colors::Red, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));//Draws Cross hair
+		spriteFont->DrawString(spriteBatch.get(), L"- and + are sensertivity \n WASD Move ship \n ArrowKeys Rotate Ship \n Space Ship UP \n LControl Ship Down \n F Fire Lasers \n Press x for emergency breaks", XMFLOAT2(0, 750), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F)); //Draw Controls
+		spriteBatch->End(); //Ends Text Render 
 		swapChain->Present(0, 0); //Swaps the chian
 	}
 	else
 	{
+		level++;
+			if (level > 1)
+			{
+				level = 1;
+			}
+		//Clears render and depth view, sets background to black
 		DevCon->ClearRenderTargetView(RenderTargetView, Colors::Black);
 		DevCon->ClearDepthStencilView(depthStencelView, D3D11_CLEAR_STENCIL || D3D11_CLEAR_DEPTH, 1.0f, 0);
 
@@ -2279,6 +2815,7 @@ void Render()
 
 		//Calculates Percentge Left
 		PercentageKilled = (TargetsLeft / TotalTargets) * 100;
+		
 		//Combines Percentege Left to text
 		wstring TP = std::to_wstring(PercentageKilled);
 		wstring TPEXT = L"Percentage Left = ";
@@ -2289,7 +2826,7 @@ void Render()
 		//Text Draw stage
 		spriteBatch = std::make_unique<DirectX::SpriteBatch>(DevCon);
 		spriteFont = std::make_unique<DirectX::SpriteFont>(Device, L"Text/comic_sans_ms_16.spritefont"); //Setting Font
-		spriteBatch->Begin();
+		spriteBatch->Begin(); //Begins TExt Drawing
 		spriteFont->DrawString(spriteBatch.get(), Text3, XMFLOAT2(1550, 00), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
 		spriteFont->DrawString(spriteBatch.get(), Text4, XMFLOAT2(1550, 50), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
 		spriteFont->DrawString(spriteBatch.get(), Text5, XMFLOAT2(1550, 100), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
@@ -2297,7 +2834,7 @@ void Render()
 		spriteFont->DrawString(spriteBatch.get(), Text7, XMFLOAT2(1550, 200), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
 		spriteFont->DrawString(spriteBatch.get(), L"Level Finished Congratulations \n your score is on the right \n to start a new level press X", XMFLOAT2(500, 200), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
 		spriteFont->DrawString(spriteBatch.get(), Text8, XMFLOAT2(1550, 250), DirectX::Colors::White, 0.0f, XMFLOAT2(0.0f, 0.0F), XMFLOAT2(1.0f, 1.0F));
-		spriteBatch->End();
+		spriteBatch->End(); //Ends Text Drawing
 		swapChain->Present(0, 0); //Swaps the chian
 	}
 }

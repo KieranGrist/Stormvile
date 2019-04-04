@@ -1,7 +1,13 @@
 #include "Target.h"
 
+//Target Constructor
+Target::Target()
+{
+	Health = 0;
+}
 
 
+//Target Setup
 void Target::Setup(targetInit Init)
 {
 	//Initiilise Targets Game Object With the structure values
@@ -14,11 +20,10 @@ void Target::Setup(targetInit Init)
 	Temp.ColourR = Init.colourR;
 	Temp.DrawTexture = Init.DrawTexture;
 	Setup(Temp);
-	//Set Target Health
 	Health = Init.Health;
 	
 }
-
+//Gameobject setup
 void Target::Setup(GameObjectInit Init)
 {
 	//Initiilise Targets Game Object With the structure values
@@ -29,26 +34,25 @@ void Target::Setup(GameObjectInit Init)
 	Green = Init.ColourG;
 	Blue = Init.ColourB;
 	DrawTexture = Init.DrawTexture;
+	Health = 100;
 }
-
+//Update Target
 void Target::Update()
 {
 	//Simple Update script, it will only draw and update collision if the health is more then 1
 	if (Health >= 1)
 	{
-		MinExtent = VectorSub(Position, Vector3(1, 1, 1));
-		MaxExtent = VectorAdd(Position, Vector3(1, 1, 1));
+		//Set aabbb
+		MinExtent = VectorSub(Position, Vector3(1,1,1));
+		MaxExtent = VectorAdd(Position, Vector3(1,1,1));
+
+		//Draw Target
 		Draw();
 	}
 	else
 	{
 	}
 }
-
-Target::Target()
-{
-}
-
 
 Target::~Target()
 {
